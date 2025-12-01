@@ -85,33 +85,45 @@ public class DocumentRepository {
         });
     }
 
-    public List<DocumentChunkSearchRow> searchChunks(UUID clientId, float[] queryVector, int limit) {
+    public List<DocumentSearchRow> searchDocumentsWithBestChunk(UUID clientId, float[] queryVector, int limit) {
         String sql = """
-                SELECT dc.document_id,
-                       dc.chunk_index,
-                       dc.content,
-                       d.client_id,
-                       d.title,
-                       (dc.embedding <-> :queryVector) AS distance,
-                       d.created_at
-                FROM document_chunks dc
-                JOIN documents d ON d.id = dc.document_id
-                WHERE (:clientId IS NULL OR d.client_id = :clientId)
-                ORDER BY dc.embedding <-> :queryVector
+                SELECT document_id AS id,
+                       client_id,
+                       title,
+                       content,
+                       content_hash,
+                       chunk_content,
+                       summary,
+                       distance,
+                       created_at
+                FROM (
+                         SELECT d.id AS document_id,
+                                d.client_id,
+                                d.title,
+                                d.content,
+                                d.content_hash,
+                                d.summary,
+                                dc.content AS chunk_content,
+                                (dc.embedding <-> :queryVector) AS distance,
+                                d.created_at,
+                                ROW_NUMBER() OVER (PARTITION BY d.id ORDER BY dc.embedding <-> :queryVector) AS rn
+                         FROM document_chunks dc
+                         JOIN documents d ON d.id = dc.document_id
+                         WHERE (:clientId IS NULL OR d.client_id = :clientId)
+                     ) ranked
+                WHERE rn = 1
+                ORDER BY distance
                 LIMIT :limit
                 """;
         var params = new MapSqlParameterSource()
                 .addValue("clientId", clientId)
                 .addValue("queryVector", new SqlParameterValue(Types.OTHER, new PGvector(queryVector)))
                 .addValue("limit", limit);
-        return jdbcTemplate.query(sql, params, (rs, rowNum) -> new DocumentChunkSearchRow(
-                rs.getObject("document_id", UUID.class),
-                rs.getObject("client_id", UUID.class),
-                rs.getString("title"),
-                rs.getInt("chunk_index"),
-                rs.getString("content"),
+
+        return jdbcTemplate.query(sql, params, (rs, rowNum) -> new DocumentSearchRow(
+                DOCUMENT_ROW_MAPPER.mapRow(rs, rowNum),
                 rs.getDouble("distance"),
-                rs.getObject("created_at", java.time.OffsetDateTime.class)
+                rs.getString("chunk_content")
         ));
     }
 
@@ -130,14 +142,6 @@ public class DocumentRepository {
         }
     }
 
-    public record DocumentChunkSearchRow(
-            UUID documentId,
-            UUID clientId,
-            String title,
-            int chunkIndex,
-            String chunkContent,
-            double distance,
-            java.time.OffsetDateTime createdAt
-    ) {
+    public record DocumentSearchRow(Document document, double distance, String matchedSnippet) {
     }
 }
