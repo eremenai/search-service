@@ -24,10 +24,10 @@ management:
 
 embedding:
   provider: mock
-  dimension: 768
+  dimension: 384
   http:
     base-url: ${EMBEDDING_BASE_URL:http://localhost:8000}
     api-token: ${EMBEDDING_API_TOKEN:}
 
 chunking:
-  max-chars: 1200
+  max-chars: 100

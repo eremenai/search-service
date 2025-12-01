@@ -8,8 +8,8 @@ import com.neviswealth.searchservice.chunking.ChunkingStrategy;
 import com.neviswealth.searchservice.domain.Document;
 import com.neviswealth.searchservice.domain.DocumentChunk;
 import com.neviswealth.searchservice.embedding.ChunkingFailedException;
-import com.neviswealth.searchservice.embedding.EmbeddingFailedException;
 import com.neviswealth.searchservice.embedding.DocumentIngestionException;
+import com.neviswealth.searchservice.embedding.EmbeddingFailedException;
 import com.neviswealth.searchservice.embedding.EmbeddingProvider;
 import com.neviswealth.searchservice.persistence.ClientRepository;
 import com.neviswealth.searchservice.persistence.DocumentRepository;
@@ -136,5 +136,9 @@ public class DocumentService {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 algorithm unavailable", e);
         }
+    }
+
+    public List<DocumentDto> getAll() {
+        return documentRepository.getAll().stream().map(DocumentDto::from).toList();
     }
 }

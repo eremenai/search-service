@@ -3,29 +3,37 @@ package com.neviswealth.searchservice.config;
 import com.neviswealth.searchservice.embedding.EmbeddingProvider;
 import com.neviswealth.searchservice.embedding.HttpEmbeddingProvider;
 import com.neviswealth.searchservice.embedding.MockEmbeddingProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestTemplate;
+
+import java.time.Duration;
 
 @Configuration
 public class EmbeddingConfig {
 
     @Bean
-    public EmbeddingProvider embeddingProvider(EmbeddingProperties properties, RestClient.Builder restClientBuilder) {
-        EmbeddingProviderType providerType = EmbeddingProviderType.from(properties.getProvider());
-        return switch (providerType) {
-            case HTTP -> new HttpEmbeddingProvider(buildRestClient(properties, restClientBuilder));
-            case MOCK -> new MockEmbeddingProvider(properties.getDimension());
-        };
+    @Qualifier("embeddingRestTemplate")
+    public RestTemplate externalRestTemplate(RestTemplateBuilder builder, EmbeddingProperties properties) {
+        return builder
+                .rootUri(properties.getHttp().getBaseUrl())
+                .connectTimeout(Duration.ofSeconds(1))
+                .readTimeout(Duration.ofSeconds(5))
+                .additionalInterceptors((request, body, execution) -> {
+                    request.getHeaders().setBearerAuth(properties.getHttp().getApiToken());
+                    return execution.execute(request, body);
+                })
+                .build();
     }
 
-    private RestClient buildRestClient(EmbeddingProperties properties, RestClient.Builder builder) {
-        var httpProps = properties.getHttp();
-        RestClient.Builder configured = builder.baseUrl(httpProps.getBaseUrl());
-        if (StringUtils.hasText(httpProps.getApiToken())) {
-            configured = configured.defaultHeader("Authorization", "Bearer " + httpProps.getApiToken());
-        }
-        return configured.build();
+    @Bean
+    public EmbeddingProvider embeddingProvider(EmbeddingProperties properties, @Qualifier("embeddingRestTemplate") RestTemplate restTemplate) {
+        EmbeddingProviderType providerType = EmbeddingProviderType.from(properties.getProvider());
+        return switch (providerType) {
+            case HTTP -> new HttpEmbeddingProvider(restTemplate);
+            case MOCK -> new MockEmbeddingProvider(properties.getDimension());
+        };
     }
 }

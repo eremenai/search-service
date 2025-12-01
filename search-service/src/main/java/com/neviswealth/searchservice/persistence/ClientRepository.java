@@ -93,6 +93,10 @@ public class ClientRepository {
         return jdbcTemplate.query(sql, params, new ClientSearchRowMapper());
     }
 
+    public List<Client> getAll() {
+        return jdbcTemplate.query("SELECT * from clients", CLIENT_ROW_MAPPER);
+    }
+
     private static class ClientRowMapper implements RowMapper<Client> {
         @Override
         public Client mapRow(ResultSet rs, int rowNum) throws SQLException {

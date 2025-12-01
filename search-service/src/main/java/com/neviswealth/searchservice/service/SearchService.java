@@ -1,8 +1,6 @@
 package com.neviswealth.searchservice.service;
 
-import com.neviswealth.searchservice.api.dto.ClientDto;
-import com.neviswealth.searchservice.api.dto.DocumentDto;
-import com.neviswealth.searchservice.api.dto.SearchResultDto;
+import com.neviswealth.searchservice.api.dto.*;
 import com.neviswealth.searchservice.embedding.EmbeddingProvider;
 import com.neviswealth.searchservice.persistence.ClientRepository;
 import com.neviswealth.searchservice.persistence.DocumentRepository;
@@ -14,14 +12,12 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Stream;
 
 @Service
 public class SearchService {
 
     private static final int MAX_CLIENT_RESULTS = 20;
     private static final int MAX_DOCUMENT_RESULTS = 10;
-    private static final int MAX_OVERALL_RESULTS = 15;
 
     private final ClientRepository clientRepository;
     private final DocumentRepository documentRepository;
@@ -35,7 +31,7 @@ public class SearchService {
         this.embeddingProvider = embeddingProvider;
     }
 
-    public List<SearchResultDto> search(String query, UUID clientId) {
+    public SearchResultDto search(String query, UUID clientId) {
         if (query == null || query.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Query 'q' is required");
         }
@@ -45,16 +41,10 @@ public class SearchService {
             }
         }
 
-        List<SearchResultDto> clientsResults = searchClients(query);
-        List<SearchResultDto> documentsResults = searchDocuments(query, clientId);
-
-        return Stream.concat(clientsResults.stream(), documentsResults.stream())
-                .sorted(Comparator.comparingDouble(SearchResultDto::score).reversed())
-                .limit(MAX_OVERALL_RESULTS)
-                .toList();
+        return new SearchResultDto(searchClients(query), searchDocuments(query, clientId));
     }
 
-    private List<SearchResultDto> searchClients(String query) {
+    private List<ScoredClientDto> searchClients(String query) {
         String normalizedQuery = query.trim().toLowerCase().replaceAll("\\s+", " ");
         String slugQuery = SlugUtil.slugify(normalizedQuery);
         if (slugQuery.isEmpty()) {
@@ -68,26 +58,23 @@ public class SearchService {
 
         return clientHits.stream()
                 .limit(MAX_CLIENT_RESULTS)
-                .map(hit -> SearchResultDto.clientResult(hit.score(), ClientDto.from(hit.client())))
+                .map(hit -> new ScoredClientDto(ClientDto.from(hit.client()), hit.score()))
                 .toList();
     }
 
-    private List<SearchResultDto> searchDocuments(String query, UUID clientId) {
+    private List<ScoredDocumentDto> searchDocuments(String query, UUID clientId) {
         float[] queryVector = embeddingProvider.embed(query);
         List<DocumentRepository.DocumentSearchRow> rows =
                 documentRepository.searchDocumentsWithBestChunk(clientId, queryVector, MAX_DOCUMENT_RESULTS);
 
         return rows.stream()
-                .map(row -> SearchResultDto.documentResult(
-                        scoreFromDistance(row.distance()),
+                .map(row -> new ScoredDocumentDto(
                         DocumentDto.from(row.document()),
-                        row.matchedSnippet()))
+                        row.distance(),
+                        row.matchedSnippet())
+                )
                 .limit(MAX_DOCUMENT_RESULTS)
-                .sorted(Comparator.comparingDouble(SearchResultDto::score).reversed())
+                .sorted(Comparator.comparingDouble(ScoredDocumentDto::distance))
                 .toList();
-    }
-
-    private double scoreFromDistance(double distance) {
-        return 1.0d / (1.0d + Math.max(distance, 0.0d));
     }
 }

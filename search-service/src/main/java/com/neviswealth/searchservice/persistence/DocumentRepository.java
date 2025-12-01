@@ -109,14 +109,14 @@ public class DocumentRepository {
                                 ROW_NUMBER() OVER (PARTITION BY d.id ORDER BY dc.embedding <-> :queryVector) AS rn
                          FROM document_chunks dc
                          JOIN documents d ON d.id = dc.document_id
-                         WHERE (:clientId IS NULL OR d.client_id = :clientId)
+                         WHERE %s
                      ) ranked
                 WHERE rn = 1
                 ORDER BY distance
                 LIMIT :limit
-                """;
+                """.formatted(clientId == null ? "true" : "d.client_id = :clientId");
         var params = new MapSqlParameterSource()
-                .addValue("clientId", clientId)
+                .addValue("clientId", clientId, Types.OTHER)
                 .addValue("queryVector", new SqlParameterValue(Types.OTHER, new PGvector(queryVector)))
                 .addValue("limit", limit);
 
@@ -125,6 +125,10 @@ public class DocumentRepository {
                 rs.getDouble("distance"),
                 rs.getString("chunk_content")
         ));
+    }
+
+    public List<Document> getAll() {
+        return jdbcTemplate.query("Select * from documents", DOCUMENT_ROW_MAPPER);
     }
 
     private static class DocumentRowMapper implements RowMapper<Document> {

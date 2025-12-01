@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -67,5 +68,9 @@ public class ClientService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email must contain domain");
         }
         return email.substring(atIndex + 1);
+    }
+
+    public List<ClientDto> getAll() {
+        return clientRepository.getAll().stream().map(ClientDto::from).toList();
     }
 }

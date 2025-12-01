@@ -27,7 +27,6 @@ cd search-service
 Key environment variables (defaults are defined in `src/main/resources/application.yml`):
 - `DB_URL` (default `jdbc:postgresql://localhost:6000/search_service`)
 - `DB_USERNAME` / `DB_PASSWORD`
-- `DB_ADMIN_USERNAME` / `DB_ADMIN_PASSWORD` (used by Liquibase)
 - Embeddings: `EMBEDDING_BASE_URL`, `EMBEDDING_API_TOKEN`, `EMBEDDING_PROVIDER` (default `mock`)
 - Chunking: `CHUNKING_MAX_CHARS` (default `1200`)
 
@@ -62,8 +61,8 @@ docker run -p 8080:8080 ^
 - Run these from the repository root so the build context resolves correctly.
 - Database only (default): `docker compose -f devops/local/docker-compose.yml up -d` (or target explicitly with `... up -d postgres`)
 - Database + Java service: `docker compose -f devops/local/docker-compose.yml --profile app up -d`
-- Database + Java service + embeddings provider: `docker compose -f devops/local/docker-compose.yml --profile app --profile embed up -d`  
-  The embeddings service block is currently commented out—uncomment it when the embeddings provider is available.
+- Database + Java service + embeddings provider (Java configured for HTTP embeddings): `docker compose -f devops/local/docker-compose.yml --profile embed up -d`  
+  This starts the FastAPI embeddings-calculation-service and the Java app with `EMBEDDING_PROVIDER=http` pointing at the embeddings container. Avoid running `--profile app` and `--profile embed` together since both map port 8080.
 
 ## Useful links
 - Design document: `docs/design.md`
