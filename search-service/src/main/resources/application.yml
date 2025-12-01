@@ -12,8 +12,6 @@
     sql-dialect: POSTGRES
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
-    user: ${DB_ADMIN_USERNAME:search_service}
-    password: ${DB_ADMIN_PASSWORD:search_service}
 
 server:
   port: 8080

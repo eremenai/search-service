@@ -5,6 +5,10 @@ import com.neviswealth.searchservice.api.dto.DocumentDto;
 import com.neviswealth.searchservice.chunking.Chunk;
 import com.neviswealth.searchservice.chunking.ChunkingStrategy;
 import com.neviswealth.searchservice.domain.Document;
+import com.neviswealth.searchservice.domain.DocumentChunk;
+import com.neviswealth.searchservice.embedding.ChunkingFailedException;
+import com.neviswealth.searchservice.embedding.DocumentIngestionException;
+import com.neviswealth.searchservice.embedding.EmbeddingFailedException;
 import com.neviswealth.searchservice.embedding.EmbeddingProvider;
 import com.neviswealth.searchservice.persistence.ClientRepository;
 import com.neviswealth.searchservice.persistence.DocumentRepository;
@@ -23,8 +27,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class DocumentServiceTest {
@@ -54,9 +57,40 @@ class DocumentServiceTest {
         DocumentDto dto = documentService.createDocument(clientId, new CreateDocumentRequest("Utility bill", "content body"));
 
         assertThat(dto.id()).isEqualTo(saved.id());
-        ArgumentCaptor<List<?>> captor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<DocumentChunk>> captor = ArgumentCaptor.forClass(List.class);
         verify(documentRepository).insertChunks(any(), captor.capture());
         assertThat(captor.getValue()).hasSize(1);
+    }
+
+    @Test
+    void doesNotInsertChunksWhenChunkingReturnsEmpty() {
+        UUID clientId = UUID.randomUUID();
+        when(clientRepository.existsById(clientId)).thenReturn(true);
+        when(documentRepository.existsByClientIdAndTitle(clientId, "Title")).thenReturn(false);
+        when(chunkingStrategy.chunk("content body")).thenReturn(List.of());
+        Document saved = new Document(UUID.randomUUID(), clientId, "Title", "content body", "hash", null, OffsetDateTime.now());
+        when(documentRepository.insert(any())).thenReturn(saved);
+
+        documentService.createDocument(clientId, new CreateDocumentRequest("Title", "content body"));
+
+        verify(documentRepository, never()).insertChunks(any(), any());
+    }
+
+    @Test
+    void computesContentHashBeforeInsert() {
+        UUID clientId = UUID.randomUUID();
+        when(clientRepository.existsById(clientId)).thenReturn(true);
+        when(documentRepository.existsByClientIdAndTitle(clientId, "Title")).thenReturn(false);
+        when(chunkingStrategy.chunk("abc")).thenReturn(List.of());
+        ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
+        when(documentRepository.insert(docCaptor.capture())).thenReturn(
+                new Document(UUID.randomUUID(), clientId, "Title", "abc", "hash", null, OffsetDateTime.now())
+        );
+
+        documentService.createDocument(clientId, new CreateDocumentRequest("Title", "abc"));
+
+        String expectedHash = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"; // sha256 of "abc"
+        assertThat(docCaptor.getValue().contentHash()).isEqualTo(expectedHash);
     }
 
     @Test
@@ -65,8 +99,10 @@ class DocumentServiceTest {
         when(clientRepository.existsById(clientId)).thenReturn(true);
         when(documentRepository.existsByClientIdAndTitle(clientId, "Utility bill")).thenReturn(true);
 
-        assertThrows(ResponseStatusException.class, () ->
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 documentService.createDocument(clientId, new CreateDocumentRequest("Utility bill", "content body")));
+        assertThat(ex.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.CONFLICT);
+        assertThat(ex.getReason()).contains("same title");
     }
 
     @Test
@@ -74,7 +110,63 @@ class DocumentServiceTest {
         UUID clientId = UUID.randomUUID();
         when(clientRepository.existsById(clientId)).thenReturn(false);
 
-        assertThrows(ResponseStatusException.class, () ->
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 documentService.createDocument(clientId, new CreateDocumentRequest("Utility bill", "content body")));
+        assertThat(ex.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.NOT_FOUND);
+        assertThat(ex.getReason()).contains("Client not found");
+    }
+
+    @Test
+    void getDocumentReturnsNotFoundWhenMissing() {
+        UUID docId = UUID.randomUUID();
+        when(documentRepository.findById(docId)).thenReturn(java.util.Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> documentService.getDocument(docId));
+        assertThat(ex.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.NOT_FOUND);
+        assertThat(ex.getReason()).contains("Document not found");
+    }
+
+    @Test
+    void getDocumentReturnsDto() {
+        UUID docId = UUID.randomUUID();
+        UUID clientId = UUID.randomUUID();
+        Document doc = new Document(docId, clientId, "Title", "Body", "hash", null, OffsetDateTime.now());
+        when(documentRepository.findById(docId)).thenReturn(java.util.Optional.of(doc));
+
+        var dto = documentService.getDocument(docId);
+
+        assertThat(dto.id()).isEqualTo(docId);
+        assertThat(dto.content()).isEqualTo("Body");
+    }
+
+    @Test
+    void throwsWhenChunkingFails() {
+        UUID clientId = UUID.randomUUID();
+        when(clientRepository.existsById(clientId)).thenReturn(true);
+        when(documentRepository.existsByClientIdAndTitle(clientId, "Title")).thenReturn(false);
+        when(chunkingStrategy.chunk("content body")).thenThrow(new ChunkingFailedException("chunk error"));
+        Document saved = new Document(UUID.randomUUID(), clientId, "Title", "content body", "hash", null, OffsetDateTime.now());
+        when(documentRepository.insert(any())).thenReturn(saved);
+
+        var ex = assertThrows(DocumentIngestionException.class, () ->
+                documentService.createDocument(clientId, new CreateDocumentRequest("Title", "content body")));
+        assertThat(ex.getCode()).isEqualTo("CHUNKING_FAILED");
+        assertThat(ex.getCause()).isInstanceOf(ChunkingFailedException.class);
+    }
+
+    @Test
+    void throwsWhenEmbeddingFails() {
+        UUID clientId = UUID.randomUUID();
+        when(clientRepository.existsById(clientId)).thenReturn(true);
+        when(documentRepository.existsByClientIdAndTitle(clientId, "Title")).thenReturn(false);
+        when(chunkingStrategy.chunk("body")).thenReturn(List.of(new Chunk(0, "body")));
+        when(embeddingProvider.embed("body")).thenThrow(new EmbeddingFailedException("EMBEDDING_CALL_FAILED", "embed failed"));
+        Document saved = new Document(UUID.randomUUID(), clientId, "Title", "body", "hash", null, OffsetDateTime.now());
+        when(documentRepository.insert(any())).thenReturn(saved);
+
+        var ex = assertThrows(DocumentIngestionException.class, () ->
+                documentService.createDocument(clientId, new CreateDocumentRequest("Title", "body")));
+        assertThat(ex.getCode()).isEqualTo("EMBEDDING_FAILED");
+        assertThat(ex.getCause()).isInstanceOf(EmbeddingFailedException.class);
     }
 }

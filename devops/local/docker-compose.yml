@@ -18,5 +18,41 @@ services:
       retries: 5
     restart: unless-stopped
 
+  search-service:
+    build:
+      context: ../search-service
+      dockerfile: Dockerfile
+    image: search-service:local
+    container_name: search-service-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/search_service
+      DB_USERNAME: search_service
+      DB_PASSWORD: search_service
+      EMBEDDING_PROVIDER: mock
+      EMBEDDING_BASE_URL: http://embedding:8000
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    profiles:
+      - app
+
+  # embeddings:
+  #   build:
+  #     context: ../embeddings-calculation-service
+  #   container_name: search-service-embeddings
+  #   environment:
+  #     MODEL_NAME: BAAI/bge-small-en
+  #   ports:
+  #     - "8000:8000"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   restart: unless-stopped
+  #   profiles:
+  #     - embed
+
 volumes:
   postgres_data:

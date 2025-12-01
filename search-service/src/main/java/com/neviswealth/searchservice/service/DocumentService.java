@@ -7,6 +7,9 @@ import com.neviswealth.searchservice.chunking.Chunk;
 import com.neviswealth.searchservice.chunking.ChunkingStrategy;
 import com.neviswealth.searchservice.domain.Document;
 import com.neviswealth.searchservice.domain.DocumentChunk;
+import com.neviswealth.searchservice.embedding.ChunkingFailedException;
+import com.neviswealth.searchservice.embedding.EmbeddingFailedException;
+import com.neviswealth.searchservice.embedding.DocumentIngestionException;
 import com.neviswealth.searchservice.embedding.EmbeddingProvider;
 import com.neviswealth.searchservice.persistence.ClientRepository;
 import com.neviswealth.searchservice.persistence.DocumentRepository;
@@ -63,22 +66,66 @@ public class DocumentService {
         );
         Document saved = documentRepository.insert(document);
 
-        List<Chunk> chunks = chunkingStrategy.chunk(content);
-        List<DocumentChunk> toPersist = new ArrayList<>(chunks.size());
-        for (Chunk chunk : chunks) {
-            float[] embedding = embeddingProvider.embed(chunk.content());
-            toPersist.add(new DocumentChunk(saved.id(), chunk.index(), chunk.content(), embedding));
+        try {
+            List<Chunk> chunks = chunkContent(saved);
+            List<DocumentChunk> toPersist = embedChunks(saved, chunks);
+            if (!toPersist.isEmpty()) {
+                documentRepository.insertChunks(saved.id(), toPersist);
+            }
+            return DocumentDto.from(saved);
+
+        } catch (ChunkingFailedException e) {
+            throw new DocumentIngestionException("CHUNKING_FAILED",
+                    "Chunking failed for document '%s'".formatted(title),
+                    clientId,
+                    title,
+                    e);
+        } catch (EmbeddingFailedException e) {
+            throw new DocumentIngestionException("EMBEDDING_FAILED",
+                    "Embedding failed for document '%s'".formatted(title),
+                    clientId,
+                    title,
+                    e);
+        } catch (DocumentIngestionException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new DocumentIngestionException("DOCUMENT_INGESTION_FAILED",
+                    "Failed to ingest document '%s' for client %s".formatted(title, clientId),
+                    clientId,
+                    title,
+                    e);
         }
-        if (!toPersist.isEmpty()) {
-            documentRepository.insertChunks(saved.id(), toPersist);
-        }
-        return DocumentDto.from(saved);
     }
 
     public DocumentWithContentDto getDocument(UUID documentId) {
         return documentRepository.findById(documentId)
                 .map(DocumentWithContentDto::from)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found"));
+    }
+
+    private List<Chunk> chunkContent(Document document) {
+        try {
+            return chunkingStrategy.chunk(document.content());
+        } catch (ChunkingFailedException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new ChunkingFailedException("Chunking failed", e);
+        }
+    }
+
+    private List<DocumentChunk> embedChunks(Document saved, List<Chunk> chunks) {
+        try {
+            List<DocumentChunk> toPersist = new ArrayList<>(chunks.size());
+            for (Chunk chunk : chunks) {
+                float[] embedding = embeddingProvider.embed(chunk.content());
+                toPersist.add(new DocumentChunk(saved.id(), chunk.index(), chunk.content(), embedding));
+            }
+            return toPersist;
+        } catch (EmbeddingFailedException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new EmbeddingFailedException("EMBEDDING_CALL_FAILED", "Embedding failed", e);
+        }
     }
 
     private String computeContentHash(String content) {

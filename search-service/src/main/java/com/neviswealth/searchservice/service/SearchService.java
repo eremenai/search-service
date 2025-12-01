@@ -55,7 +55,7 @@ public class SearchService {
     }
 
     private List<SearchResultDto> searchClients(String query) {
-        String normalizedQuery = query.trim().toLowerCase();
+        String normalizedQuery = query.trim().toLowerCase().replaceAll("\\s+", " ");
         String slugQuery = SlugUtil.slugify(normalizedQuery);
         if (slugQuery.isEmpty()) {
             slugQuery = normalizedQuery;
@@ -67,6 +67,7 @@ public class SearchService {
                 : clientRepository.searchByNameOrDomain(normalizedQuery, slugQuery, MAX_CLIENT_RESULTS);
 
         return clientHits.stream()
+                .limit(MAX_CLIENT_RESULTS)
                 .map(hit -> SearchResultDto.clientResult(hit.score(), ClientDto.from(hit.client())))
                 .toList();
     }
@@ -81,6 +82,7 @@ public class SearchService {
                         scoreFromDistance(row.distance()),
                         DocumentDto.from(row.document()),
                         row.matchedSnippet()))
+                .limit(MAX_DOCUMENT_RESULTS)
                 .sorted(Comparator.comparingDouble(SearchResultDto::score).reversed())
                 .toList();
     }
