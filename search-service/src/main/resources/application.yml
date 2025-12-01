@@ -1,0 +1,35 @@
+﻿spring:
+  application:
+    name: search-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:6000/search_service}
+    username: ${DB_USERNAME:app_user}
+    password: ${DB_PASSWORD:app_user}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+  jooq:
+    sql-dialect: POSTGRES
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    user: ${DB_ADMIN_USERNAME:search_service}
+    password: ${DB_ADMIN_PASSWORD:search_service}
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+embedding:
+  provider: mock
+  dimension: 768
+  http:
+    base-url: ${EMBEDDING_BASE_URL:http://localhost:8000}
+    api-token: ${EMBEDDING_API_TOKEN:}
+
+chunking:
+  max-chars: 1200

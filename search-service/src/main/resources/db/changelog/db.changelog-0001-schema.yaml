@@ -1,0 +1,178 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0001-create-extensions
+      author: codex
+      changes:
+        - sql:
+            comment: Enable required PostgreSQL extensions
+            sql: |
+              CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+              CREATE EXTENSION IF NOT EXISTS pg_trgm;
+              CREATE EXTENSION IF NOT EXISTS vector;
+
+  - changeSet:
+      id: 0002-create-clients
+      author: codex
+      changes:
+        - createTable:
+            tableName: clients
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    primaryKeyName: pk_clients
+                  defaultValueComputed: uuid_generate_v4()
+              - column:
+                  name: created_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: email
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: email_domain
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: email_domain_slug
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: first_name
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_name
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: full_name
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: country_of_residence
+                  type: TEXT
+                  constraints:
+                    nullable: true
+        - addUniqueConstraint:
+            tableName: clients
+            columnNames: email
+            constraintName: uq_clients_email
+
+  - changeSet:
+      id: 0003-create-documents
+      author: codex
+      changes:
+        - createTable:
+            tableName: documents
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    primaryKeyName: pk_documents
+                  defaultValueComputed: uuid_generate_v4()
+              - column:
+                  name: client_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_documents_client
+                    references: clients(id)
+              - column:
+                  name: title
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: content
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: content_hash
+                  type: CHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: summary
+                  type: TEXT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: created_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: documents
+            columnNames: client_id, title
+            constraintName: uq_documents_client_title
+
+  - changeSet:
+      id: 0004-create-document-chunks
+      author: codex
+      changes:
+        - createTable:
+            tableName: document_chunks
+            columns:
+              - column:
+                  name: document_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_chunks_document
+                    references: documents(id)
+              - column:
+                  name: chunk_index
+                  type: INTEGER
+                  constraints:
+                    nullable: false
+              - column:
+                  name: content
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: embedding
+                  type: "vector(768)"
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: document_chunks
+            columnNames: document_id, chunk_index
+            constraintName: pk_document_chunks
+
+  - changeSet:
+      id: 0005-create-indexes
+      author: codex
+      changes:
+        - sql:
+            comment: Trigram indexes for client search
+            sql: |
+              CREATE INDEX IF NOT EXISTS idx_clients_email_trgm ON clients USING gin (email gin_trgm_ops);
+              CREATE INDEX IF NOT EXISTS idx_clients_email_domain_trgm ON clients USING gin (email_domain gin_trgm_ops);
+              CREATE INDEX IF NOT EXISTS idx_clients_email_domain_slug_trgm ON clients USING gin (email_domain_slug gin_trgm_ops);
+              CREATE INDEX IF NOT EXISTS idx_clients_full_name_trgm ON clients USING gin (full_name gin_trgm_ops);
+        - sql:
+            comment: IVFFlat index for vector search on document chunks
+            sql: |
+              CREATE INDEX IF NOT EXISTS idx_document_chunks_embedding
+              ON document_chunks
+              USING ivfflat (embedding vector_l2_ops)
+              WITH (lists = 100);
