@@ -20,7 +20,7 @@ services:
 
   search-service:
     build:
-      context: ../search-service
+      context: ../../search-service
       dockerfile: Dockerfile
     image: search-service:local
     container_name: search-service-app

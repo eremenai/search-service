@@ -35,8 +35,6 @@ When using the provided Postgres container, set:
 ```
 DB_USERNAME=search_service
 DB_PASSWORD=search_service
-DB_ADMIN_USERNAME=search_service
-DB_ADMIN_PASSWORD=search_service
 ```
 
 ## Build and test
@@ -57,12 +55,11 @@ docker run -p 8080:8080 ^
   -e DB_URL=jdbc:postgresql://host.docker.internal:6000/search_service ^
   -e DB_USERNAME=search_service ^
   -e DB_PASSWORD=search_service ^
-  -e DB_ADMIN_USERNAME=search_service ^
-  -e DB_ADMIN_PASSWORD=search_service ^
   search-service
 ```
 
 ## Docker Compose options
+- Run these from the repository root so the build context resolves correctly.
 - Database only (default): `docker compose -f devops/local/docker-compose.yml up -d` (or target explicitly with `... up -d postgres`)
 - Database + Java service: `docker compose -f devops/local/docker-compose.yml --profile app up -d`
 - Database + Java service + embeddings provider: `docker compose -f devops/local/docker-compose.yml --profile app --profile embed up -d`  

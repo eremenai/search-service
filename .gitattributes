@@ -1,0 +1,4 @@
+# Ensure critical scripts use LF line endings
+/search-service/gradlew text eol=lf
+/search-service/gradle/wrapper/gradle-wrapper.properties text eol=lf
+*.sh text eol=lf
