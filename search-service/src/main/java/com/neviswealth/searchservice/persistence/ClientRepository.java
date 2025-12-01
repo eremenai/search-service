@@ -80,9 +80,23 @@ public class ClientRepository {
     public List<ClientSearchRow> searchByNameOrDomain(String normalizedQuery, String slugQuery, int limit) {
         String sql = """
                 SELECT id, email, email_domain, email_domain_slug, first_name, last_name, full_name, country_of_residence, created_at,
-                       GREATEST(similarity(full_name, :normalizedQuery), similarity(email_domain_slug, :slugQuery)) AS score
+                       GREATEST(
+                            similarity(full_name, :normalizedQuery),
+                            similarity(full_name, :slugQuery),
+                            similarity(email_domain_slug, :slugQuery),
+                            similarity(email_domain, :slugQuery),
+                            similarity(first_name, :normalizedQuery),
+                            similarity(last_name, :normalizedQuery)
+                       ) AS score
                 FROM clients
-                WHERE full_name % :normalizedQuery OR email_domain_slug % :slugQuery
+                WHERE  (
+                    full_name % :normalizedQuery OR
+                    full_name % :slugQuery OR
+                    email_domain_slug % :slugQuery OR
+                    email_domain % :slugQuery OR
+                    first_name % :normalizedQuery OR
+                    last_name % :normalizedQuery
+                )
                 ORDER BY score DESC
                 LIMIT :limit
                 """;

@@ -24,7 +24,7 @@ public class SearchController {
 
     @GetMapping
     public SearchResultDto search(@RequestParam("q") @NotBlank String query,
-                                        @RequestParam(value = "clientId", required = false) UUID clientId) {
+                                  @RequestParam(value = "clientId", required = false) UUID clientId) {
         return searchService.search(query, clientId);
     }
 }
