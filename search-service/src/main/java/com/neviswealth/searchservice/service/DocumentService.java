@@ -9,7 +9,6 @@ import com.neviswealth.searchservice.domain.Document;
 import com.neviswealth.searchservice.domain.DocumentChunk;
 import com.neviswealth.searchservice.embedding.EmbeddingProvider;
 import com.neviswealth.searchservice.persistence.ClientRepository;
-import com.neviswealth.searchservice.persistence.DocumentChunkRepository;
 import com.neviswealth.searchservice.persistence.DocumentRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -28,18 +27,15 @@ import java.util.UUID;
 public class DocumentService {
 
     private final DocumentRepository documentRepository;
-    private final DocumentChunkRepository documentChunkRepository;
     private final ClientRepository clientRepository;
     private final ChunkingStrategy chunkingStrategy;
     private final EmbeddingProvider embeddingProvider;
 
     public DocumentService(DocumentRepository documentRepository,
-                           DocumentChunkRepository documentChunkRepository,
                            ClientRepository clientRepository,
                            ChunkingStrategy chunkingStrategy,
                            EmbeddingProvider embeddingProvider) {
         this.documentRepository = documentRepository;
-        this.documentChunkRepository = documentChunkRepository;
         this.clientRepository = clientRepository;
         this.chunkingStrategy = chunkingStrategy;
         this.embeddingProvider = embeddingProvider;
@@ -74,7 +70,7 @@ public class DocumentService {
             toPersist.add(new DocumentChunk(saved.id(), chunk.index(), chunk.content(), embedding));
         }
         if (!toPersist.isEmpty()) {
-            documentChunkRepository.insertChunks(saved.id(), toPersist);
+            documentRepository.insertChunks(saved.id(), toPersist);
         }
         return DocumentDto.from(saved);
     }

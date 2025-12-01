@@ -7,7 +7,6 @@ import com.neviswealth.searchservice.chunking.ChunkingStrategy;
 import com.neviswealth.searchservice.domain.Document;
 import com.neviswealth.searchservice.embedding.EmbeddingProvider;
 import com.neviswealth.searchservice.persistence.ClientRepository;
-import com.neviswealth.searchservice.persistence.DocumentChunkRepository;
 import com.neviswealth.searchservice.persistence.DocumentRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,8 +32,6 @@ class DocumentServiceTest {
     @Mock
     private DocumentRepository documentRepository;
     @Mock
-    private DocumentChunkRepository documentChunkRepository;
-    @Mock
     private ClientRepository clientRepository;
     @Mock
     private ChunkingStrategy chunkingStrategy;
@@ -58,7 +55,7 @@ class DocumentServiceTest {
 
         assertThat(dto.id()).isEqualTo(saved.id());
         ArgumentCaptor<List<?>> captor = ArgumentCaptor.forClass(List.class);
-        verify(documentChunkRepository).insertChunks(any(), captor.capture());
+        verify(documentRepository).insertChunks(any(), captor.capture());
         assertThat(captor.getValue()).hasSize(1);
     }
 

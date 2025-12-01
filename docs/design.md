@@ -46,12 +46,12 @@ Potential future improvements (such as per-advisor row-level security and versio
         - By first name, last name, or full name.
     - **Document search**:
         - Query by text (e.g. `address proof`) and find documents whose content uses related terms (e.g. contains `utility bill`).
-        - Document search is scoped to a specific client (the client id must be provided).
+        - Document search can be scoped to a specific client when `clientId` is provided; otherwise it searches across all documents.
 
 - **Single aggregated search endpoint**:
     - `/search` returns both clients and documents:
-        - When `clientId` is omitted: only clients are returned.
-        - When `clientId` is provided: both clients and documents for that client can be returned.
+        - When `clientId` is omitted: both client and document results are returned (documents across all clients).
+        - When `clientId` is provided: results include clients plus documents for that client.
 
 - API:
     - Endpoints to create/fetch clients and documents.
@@ -401,21 +401,19 @@ Result type for client hits:
 
 ### 7.2 Document search
 
-Document search is **always scoped to a specific client**:
-
-- The caller must provide `clientId` if they want documents in the results.
+Document search can be scoped to a specific client when `clientId` is provided; if omitted, search runs across all documents.
 
 Input:
 
 - Query string `q` (required).
-- `clientId` (UUID, required for document search).
+- `clientId` (UUID, optional).
 
 Strategy:
 
 1. Compute query embedding:
     - `v_q = EmbeddingProvider.embed(q)`.
 
-2. Query chunks for the given client using JDBC:
+2. Query chunks (optionally scoped) using JDBC:
 
 ```sql
 SELECT dc.document_id,
@@ -425,7 +423,7 @@ SELECT dc.document_id,
        d.title
 FROM document_chunks dc
 JOIN documents d ON d.id = dc.document_id
-WHERE d.client_id = :clientId
+WHERE (:clientId IS NULL OR d.client_id = :clientId)
 ORDER BY dc.embedding <-> :v_q
 LIMIT :limit_chunks;
 ```
@@ -461,13 +459,11 @@ Endpoint: `/search`
     - Query param `q` (string, required).
     - Query param `clientId` (UUID, optional).
 - Behaviour:
-    - Always run **client search** based on `q`.
-    - If `clientId` is provided:
-        - Also run **document search** for that `clientId`.
-    - Combine the results:
-        - A simple strategy is:
-            - Return all client hits first (sorted by score),
-            - Then document hits (sorted by score).
+    - Run **client search** based on `q`.
+    - Run **document search**:
+        - If `clientId` is provided, scope documents to that client.
+        - If `clientId` is omitted, search across all documents.
+    - Combine all results and sort by score descending.
 
 Response:
 
@@ -489,7 +485,7 @@ Response:
 ]
 ```
 
-If `clientId` is omitted, only `type = "client"` results are returned.
+If `clientId` is omitted, documents across all clients are included alongside client hits.
 
 ---
 
