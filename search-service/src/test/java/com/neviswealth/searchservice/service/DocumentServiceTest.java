@@ -3,11 +3,10 @@ package com.neviswealth.searchservice.service;
 import com.neviswealth.searchservice.api.dto.CreateDocumentRequest;
 import com.neviswealth.searchservice.api.dto.DocumentDto;
 import com.neviswealth.searchservice.chunking.Chunk;
+import com.neviswealth.searchservice.chunking.ChunkingFailedException;
 import com.neviswealth.searchservice.chunking.ChunkingStrategy;
 import com.neviswealth.searchservice.domain.Document;
 import com.neviswealth.searchservice.domain.DocumentChunk;
-import com.neviswealth.searchservice.embedding.ChunkingFailedException;
-import com.neviswealth.searchservice.embedding.DocumentIngestionException;
 import com.neviswealth.searchservice.embedding.EmbeddingFailedException;
 import com.neviswealth.searchservice.embedding.EmbeddingProvider;
 import com.neviswealth.searchservice.persistence.ClientRepository;
@@ -160,7 +159,7 @@ class DocumentServiceTest {
         when(clientRepository.existsById(clientId)).thenReturn(true);
         when(documentRepository.existsByClientIdAndTitle(clientId, "Title")).thenReturn(false);
         when(chunkingStrategy.chunk(any(), eq("body"))).thenReturn(List.of(new Chunk(0, "body")));
-        when(embeddingProvider.embed("body")).thenThrow(new EmbeddingFailedException("EMBEDDING_CALL_FAILED", "embed failed"));
+        when(embeddingProvider.embed("body")).thenThrow(new EmbeddingFailedException("embed failed"));
         Document saved = new Document(UUID.randomUUID(), clientId, "Title", "body", "hash", null, OffsetDateTime.now());
         when(documentRepository.insert(any())).thenReturn(saved);
 

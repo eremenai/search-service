@@ -1,48 +1,41 @@
 package com.neviswealth.searchservice.embedding;
 
-import org.springframework.http.HttpStatusCode;
-import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.web.client.HttpStatusCodeException;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
+import feign.FeignException;
+import feign.RetryableException;
+import feign.codec.DecodeException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HttpEmbeddingProvider implements EmbeddingProvider {
 
-    private final RestTemplate restTemplate;
+    private static final Logger log = LoggerFactory.getLogger(HttpEmbeddingProvider.class);
+    private final EmbeddingClient embeddingClient;
 
-    public HttpEmbeddingProvider(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
+    public HttpEmbeddingProvider(EmbeddingClient embeddingClient) {
+        this.embeddingClient = embeddingClient;
     }
 
     @Override
     public float[] embed(String text) {
         try {
-            float[] response = restTemplate.postForObject("/embed", new EmbedRequest(text), float[].class);
+            EmbeddingClient.EmbeddingResponse response = embeddingClient.embed(new EmbeddingClient.EmbeddingRequest(text));
+            float[] embedding = response == null ? null : response.embedding();
 
-            if (response == null) {
-                throw new EmbeddingFailedException("EMBEDDING_EMPTY_RESPONSE", "Embedding service returned no vector");
+            if (embedding == null) {
+                throw new EmbeddingFailedException("Embedding service returned no vector");
             }
-            return response;
+            return embedding;
 
-        } catch (HttpStatusCodeException e) {
-            HttpStatusCode status = e.getStatusCode();
-
-            if (status.is4xxClientError()) {
-                throw new EmbeddingFailedException("INVALID_EMBEDDING_REQUEST", "External 4xx: " + status, e);
-            } else if (status.is5xxServerError()) {
-                throw new EmbeddingFailedException("EMBEDDING_SERVER_ERROR", "External 5xx: " + status, e);
-            } else {
-                throw new EmbeddingFailedException("EMBEDDING_CALL_FAILED", "Unexpected status: " + status, e);
-            }
-        } catch (HttpMessageNotReadableException e) {
-            // JSON format is wrong, cannot map to float[]
-            throw new EmbeddingFailedException("EMBEDDING_INVALID_FORMAT", "Embedding service returned invalid format", e);
-        } catch (RestClientException e) {
-            // timeouts, connection errors
-            throw new EmbeddingFailedException("EMBEDDING_CALL_FAILED", "External call failed", e);
+        } catch (RetryableException e) {
+            // all reties failed
+            log.error("Error during querying for embedding", e);
+            throw new EmbeddingFailedException("Could not retrieve embeddings", e);
+        } catch (DecodeException e) {
+            log.error("Embedding service returned invalid format: {}", e.responseBody().orElse(null), e);
+            throw new EmbeddingFailedException("Embedding service returned invalid format", e);
+        } catch (FeignException e) {
+            log.error("Embedding service call failed", e);
+            throw new EmbeddingFailedException("Embedding service call failed", e);
         }
-    }
-
-    private record EmbedRequest(String text) {
     }
 }

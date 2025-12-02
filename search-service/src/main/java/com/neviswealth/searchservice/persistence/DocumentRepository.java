@@ -21,7 +21,8 @@ import java.util.UUID;
 @Repository
 public class DocumentRepository {
 
-    private static final RowMapper<Document> DOCUMENT_ROW_MAPPER = new DocumentRowMapper();
+    private static final RowMapper<Document> FULL_DOCUMENT_ROW_MAPPER = new FullDocumentRowMapper();
+    private static final RowMapper<Document> NO_CONTENT_DOCUMENT_ROW_MAPPER = new NoContentDocumentRowMapper();
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -34,25 +35,20 @@ public class DocumentRepository {
                 .addValue("client_id", document.clientId())
                 .addValue("title", document.title())
                 .addValue("content", document.content())
-                .addValue("content_hash", document.contentHash())
-                .addValue("summary", document.summary());
+                .addValue("content_hash", document.contentHash());
 
         String sql = """
-                INSERT INTO documents (client_id, title, content, content_hash, summary)
-                VALUES (:client_id, :title, :content, :content_hash, :summary)
-                RETURNING id, client_id, title, content, content_hash, summary, created_at
+                INSERT INTO documents (client_id, title, content, content_hash)
+                VALUES (:client_id, :title, :content, :content_hash)
+                RETURNING id, client_id, title, created_at
                 """;
-        return jdbcTemplate.queryForObject(sql, params, DOCUMENT_ROW_MAPPER);
+        return jdbcTemplate.queryForObject(sql, params, NO_CONTENT_DOCUMENT_ROW_MAPPER);
     }
 
     public Optional<Document> findById(UUID id) {
-        String sql = """
-                SELECT id, client_id, title, content, content_hash, summary, created_at
-                FROM documents
-                WHERE id = :id
-                """;
+        String sql = "SELECT * FROM documents WHERE id = :id";
         var params = new MapSqlParameterSource("id", id);
-        return jdbcTemplate.query(sql, params, DOCUMENT_ROW_MAPPER).stream().findFirst();
+        return jdbcTemplate.query(sql, params, FULL_DOCUMENT_ROW_MAPPER).stream().findFirst();
     }
 
     public boolean existsByClientIdAndTitle(UUID clientId, String title) {
@@ -85,53 +81,92 @@ public class DocumentRepository {
         });
     }
 
-    public List<DocumentSearchRow> searchDocumentsWithBestChunk(UUID clientId, float[] queryVector, int limit) {
+    public List<DocumentSearchRow> searchLexically(UUID clientId, String query, int limit) {
         String sql = """
-                SELECT document_id AS id,
+                SELECT *
+                FROM (
+                    SELECT
+                        d.id as id,
+                        d.client_id,
+                        d.title,
+                        d.created_at,
+                        dc.content AS chunk_content,
+                        CASE WHEN dc.content ILIKE '%' || :q || '%' THEN 1 ELSE 0 END AS prefix_match,
+                        similarity(dc.content, :q) as score,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY d.id
+                            ORDER BY
+                                CASE WHEN dc.content ILIKE '%' || :q || '%' THEN 1 ELSE 0 END DESC,
+                                similarity(dc.content, :q) DESC
+                        ) AS rn
+                    FROM documents d
+                    JOIN document_chunks dc ON dc.document_id = d.id
+                    WHERE
+                        (:clientId::uuid IS NULL OR d.client_id = :clientId)
+                         AND
+                        ((dc.content ILIKE '%' || :q || '%') OR (similarity(dc.content, :q) >= 0.05))
+                ) ranked
+                WHERE rn = 1
+                ORDER BY
+                    prefix_match DESC,
+                    score DESC
+                LIMIT :limit;
+                """;
+        var params = new MapSqlParameterSource()
+                .addValue("q", query)
+                .addValue("clientId", clientId, Types.OTHER)
+                .addValue("limit", limit);
+
+        return jdbcTemplate.query(sql, params, (rs, rowNum) -> new DocumentSearchRow(
+                NO_CONTENT_DOCUMENT_ROW_MAPPER.mapRow(rs, rowNum),
+                rs.getDouble("score"),
+                rs.getString("chunk_content"),
+                true
+        ));
+    }
+
+    public List<DocumentSearchRow> searchWithEmbeddings(UUID clientId, float[] queryVector, int limit) {
+        String sql = """
+                SELECT id,
                        client_id,
                        title,
-                       content,
-                       content_hash,
+                       created_at,
                        chunk_content,
-                       summary,
-                       distance,
-                       created_at
+                       score
                 FROM (
-                         SELECT d.id AS document_id,
+                         SELECT d.id AS id,
                                 d.client_id,
                                 d.title,
-                                d.content,
-                                d.content_hash,
-                                d.summary,
-                                dc.content AS chunk_content,
-                                (dc.embedding <-> :queryVector) AS distance,
                                 d.created_at,
+                                dc.content AS chunk_content,
+                                exp(-(dc.embedding <-> :queryVector)) AS score,
                                 ROW_NUMBER() OVER (PARTITION BY d.id ORDER BY dc.embedding <-> :queryVector) AS rn
                          FROM document_chunks dc
                          JOIN documents d ON d.id = dc.document_id
-                         WHERE %s
+                         WHERE :clientId::uuid IS NULL OR d.client_id = :clientId
                      ) ranked
-                WHERE rn = 1
-                ORDER BY distance
+                WHERE rn = 1 AND score >= 0.01
+                ORDER BY score DESC
                 LIMIT :limit
-                """.formatted(clientId == null ? "true" : "d.client_id = :clientId");
+                """;
         var params = new MapSqlParameterSource()
                 .addValue("clientId", clientId, Types.OTHER)
                 .addValue("queryVector", new SqlParameterValue(Types.OTHER, new PGvector(queryVector)))
                 .addValue("limit", limit);
 
         return jdbcTemplate.query(sql, params, (rs, rowNum) -> new DocumentSearchRow(
-                DOCUMENT_ROW_MAPPER.mapRow(rs, rowNum),
-                rs.getDouble("distance"),
-                rs.getString("chunk_content")
+                NO_CONTENT_DOCUMENT_ROW_MAPPER.mapRow(rs, rowNum),
+                rs.getDouble("score"),
+                rs.getString("chunk_content"),
+                false
         ));
     }
 
     public List<Document> getAll() {
-        return jdbcTemplate.query("Select * from documents", DOCUMENT_ROW_MAPPER);
+        return jdbcTemplate.query("Select * from documents", NO_CONTENT_DOCUMENT_ROW_MAPPER);
     }
 
-    private static class DocumentRowMapper implements RowMapper<Document> {
+    private static class FullDocumentRowMapper implements RowMapper<Document> {
         @Override
         public Document mapRow(ResultSet rs, int rowNum) throws SQLException {
             return new Document(
@@ -146,6 +181,21 @@ public class DocumentRepository {
         }
     }
 
-    public record DocumentSearchRow(Document document, double distance, String matchedSnippet) {
+    private static class NoContentDocumentRowMapper implements RowMapper<Document> {
+        @Override
+        public Document mapRow(ResultSet rs, int rowNum) throws SQLException {
+            return new Document(
+                    rs.getObject("id", UUID.class),
+                    rs.getObject("client_id", UUID.class),
+                    rs.getString("title"),
+                    null,
+                    null,
+                    null,
+                    rs.getObject("created_at", java.time.OffsetDateTime.class)
+            );
+        }
+    }
+
+    public record DocumentSearchRow(Document document, double score, String matchedSnippet, boolean lexically) {
     }
 }

@@ -14,6 +14,8 @@ app = FastAPI(title="Embedding Calculation Service")
 # Initialized at startup; kept module-scoped to avoid per-request loading.
 model: Optional[SentenceTransformer] = None
 
+PREVIEW_MAX_CHARS = 200
+
 
 class EmbedRequest(BaseModel):
     text: str = Field(..., min_length=1, description="Input text to embed")
@@ -45,6 +47,14 @@ app.add_middleware(
 @app.post("/embed", response_model=EmbedResponse)
 async def embed(request: EmbedRequest) -> EmbedResponse:
     """Generate an embedding for the provided text."""
+    condensed_text = " ".join(request.text.split())
+    preview = (
+        condensed_text[: PREVIEW_MAX_CHARS - 3] + "..."
+        if len(condensed_text) > PREVIEW_MAX_CHARS
+        else condensed_text
+    )
+    logger.info("Received /embed request (length=%d, preview='%s')", len(request.text), preview)
+
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="Field 'text' must be a non-empty string.")
 

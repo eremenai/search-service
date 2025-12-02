@@ -74,7 +74,6 @@ class SearchServiceTest {
         );
         when(clientRepository.searchByEmail("user@example.com", 20))
                 .thenReturn(List.of(new ClientRepository.ClientSearchRow(client, 0.9d)));
-        when(documentRepository.searchDocumentsWithBestChunk(isNull(), any(float[].class), eq(10))).thenReturn(List.of());
         when(embeddingProvider.embed(emailQuery)).thenReturn(new float[]{0.1f});
 
         SearchResultDto result = searchService.search(emailQuery, null);
@@ -103,7 +102,6 @@ class SearchServiceTest {
         );
         when(clientRepository.searchByNameOrDomain("john doe wealth", "johndoewealth", 20))
                 .thenReturn(List.of(new ClientRepository.ClientSearchRow(client, 0.8d)));
-        when(documentRepository.searchDocumentsWithBestChunk(isNull(), any(float[].class), eq(10))).thenReturn(List.of());
         when(embeddingProvider.embed(query)).thenReturn(new float[]{0.5f});
 
         SearchResultDto result = searchService.search(query, null);
@@ -123,8 +121,8 @@ class SearchServiceTest {
         when(clientRepository.searchByNameOrDomain("payment", "payment", 20)).thenReturn(List.of());
         when(embeddingProvider.embed("payment")).thenReturn(new float[]{0.1f});
         Document document = new Document(documentId, clientId, "Payment doc", "body", "hash", null, OffsetDateTime.now());
-        when(documentRepository.searchDocumentsWithBestChunk(eq(clientId), any(float[].class), eq(10)))
-                .thenReturn(List.of(new DocumentRepository.DocumentSearchRow(document, 0.3d, "matched")));
+        when(documentRepository.searchWithEmbeddings(eq(clientId), any(float[].class), eq(10)))
+                .thenReturn(List.of(new DocumentRepository.DocumentSearchRow(document, 0.3d, "matched", false)));
 
         SearchResultDto result = searchService.search("payment", clientId);
 
@@ -132,9 +130,9 @@ class SearchServiceTest {
         assertThat(result.documents()).hasSize(1);
         assertThat(result.documents().getFirst().document().id()).isEqualTo(documentId);
         assertThat(result.documents().getFirst().matchedSnippet()).isEqualTo("matched");
-        assertThat(result.documents().getFirst().distance()).isEqualTo(0.3d);
+        assertThat(result.documents().getFirst().score()).isEqualTo(0.3d);
         verify(clientRepository).existsById(clientId);
-        verify(documentRepository).searchDocumentsWithBestChunk(eq(clientId), any(float[].class), eq(10));
+        verify(documentRepository).searchWithEmbeddings(eq(clientId), any(float[].class), eq(10));
     }
 
     @Test
@@ -158,7 +156,7 @@ class SearchServiceTest {
                 ))
                 .toList();
         when(clientRepository.searchByEmail(query, 20)).thenReturn(clients);
-        when(documentRepository.searchDocumentsWithBestChunk(isNull(), any(float[].class), eq(10)))
+        when(documentRepository.searchWithEmbeddings(isNull(), any(float[].class), eq(10)))
                 .thenReturn(List.of());
 
         SearchResultDto result = searchService.search(query, null);
@@ -169,46 +167,68 @@ class SearchServiceTest {
     }
 
     @Test
-    void sortsDocumentsByDistanceAscending() {
+    void sortsDocumentsByDistanceDescending() {
         when(clientRepository.searchByNameOrDomain("docs", "docs", 20)).thenReturn(List.of());
-        when(embeddingProvider.embed("docs")).thenReturn(new float[]{0.5f});
+        when(embeddingProvider.embed("docs")).thenReturn(new float[]{0.1f});
         DocumentRepository.DocumentSearchRow docHigh = new DocumentRepository.DocumentSearchRow(
                 new Document(UUID.randomUUID(), UUID.randomUUID(), "DocHigh", "b", "h", null, OffsetDateTime.now()),
                 0.3d,
-                "high"
+                "high",
+                false
         );
         DocumentRepository.DocumentSearchRow docMid = new DocumentRepository.DocumentSearchRow(
                 new Document(UUID.randomUUID(), UUID.randomUUID(), "DocMid", "b", "h", null, OffsetDateTime.now()),
                 0.2d,
-                "mid"
+                "mid", false
         );
         DocumentRepository.DocumentSearchRow docLow = new DocumentRepository.DocumentSearchRow(
                 new Document(UUID.randomUUID(), UUID.randomUUID(), "DocLow", "b", "h", null, OffsetDateTime.now()),
                 0.1d,
-                "low"
+                "low", false
         );
-        when(documentRepository.searchDocumentsWithBestChunk(isNull(), any(float[].class), eq(10)))
+        when(documentRepository.searchWithEmbeddings(isNull(), any(float[].class), eq(10)))
                 .thenReturn(List.of(docHigh, docLow, docMid));
 
         SearchResultDto result = searchService.search("docs", null);
 
-        assertThat(result.documents()).extracting(ScoredDocumentDto::distance)
-                .containsExactly(0.1d, 0.2d, 0.3d);
-        assertThat(result.documents().getFirst().matchedSnippet()).isEqualTo("low");
+        assertThat(result.documents()).extracting(ScoredDocumentDto::score)
+                .containsExactly(0.3d, 0.2d, 0.1d);
+        assertThat(result.documents().getFirst().matchedSnippet()).isEqualTo("high");
+    }
+
+    @Test
+    void keepsHighestScorePerDocumentAcrossSources() {
+        when(clientRepository.searchByNameOrDomain("dup", "dup", 20)).thenReturn(List.of());
+        when(embeddingProvider.embed("dup")).thenReturn(new float[]{0.1f});
+        UUID documentId = UUID.randomUUID();
+        Document doc = new Document(documentId, UUID.randomUUID(), "DupDoc", "b", "h", null, OffsetDateTime.now());
+        DocumentRepository.DocumentSearchRow lexicalHit = new DocumentRepository.DocumentSearchRow(doc, 0.4d, "lexical", false);
+        DocumentRepository.DocumentSearchRow embeddingHit = new DocumentRepository.DocumentSearchRow(doc, 0.9d, "embed", false);
+
+        when(documentRepository.searchLexically(isNull(), eq("dup"), eq(10))).thenReturn(List.of(lexicalHit));
+        when(documentRepository.searchWithEmbeddings(isNull(), any(float[].class), eq(10))).thenReturn(List.of(embeddingHit));
+
+        SearchResultDto result = searchService.search("dup", null);
+
+        assertThat(result.documents()).hasSize(1);
+        ScoredDocumentDto topDocument = result.documents().getFirst();
+        assertThat(topDocument.document().id()).isEqualTo(documentId);
+        assertThat(topDocument.score()).isEqualTo(0.9d);
+        assertThat(topDocument.matchedSnippet()).isEqualTo("embed");
     }
 
     @Test
     void limitsDocumentResultsToTen() {
         when(clientRepository.searchByNameOrDomain("docs", "docs", 20)).thenReturn(List.of());
-        when(embeddingProvider.embed("docs")).thenReturn(new float[]{0.5f});
+        when(embeddingProvider.embed("docs")).thenReturn(new float[]{0.1f});
         List<DocumentRepository.DocumentSearchRow> docs = IntStream.range(0, 12)
                 .mapToObj(i -> new DocumentRepository.DocumentSearchRow(
                         new Document(UUID.randomUUID(), UUID.randomUUID(), "Doc" + i, "b", "h", null, OffsetDateTime.now()),
                         0.1 + i * 0.01,
-                        "snippet" + i
+                        "snippet" + i, false
                 ))
                 .toList();
-        when(documentRepository.searchDocumentsWithBestChunk(isNull(), any(float[].class), eq(10)))
+        when(documentRepository.searchWithEmbeddings(isNull(), any(float[].class), eq(10)))
                 .thenReturn(docs);
 
         SearchResultDto result = searchService.search("docs", null);

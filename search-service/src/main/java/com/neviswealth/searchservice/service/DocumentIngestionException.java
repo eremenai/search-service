@@ -1,4 +1,4 @@
-package com.neviswealth.searchservice.embedding;
+package com.neviswealth.searchservice.service;
 
 import java.util.UUID;
 

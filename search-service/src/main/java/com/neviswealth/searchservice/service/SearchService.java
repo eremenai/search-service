@@ -12,6 +12,9 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class SearchService {
@@ -63,18 +66,26 @@ public class SearchService {
     }
 
     private List<ScoredDocumentDto> searchDocuments(String query, UUID clientId) {
-        float[] queryVector = embeddingProvider.embed(query);
-        List<DocumentRepository.DocumentSearchRow> rows =
-                documentRepository.searchDocumentsWithBestChunk(clientId, queryVector, MAX_DOCUMENT_RESULTS);
+        List<DocumentRepository.DocumentSearchRow> lexically =
+                documentRepository.searchLexically(clientId, query, MAX_DOCUMENT_RESULTS);
 
-        return rows.stream()
-                .map(row -> new ScoredDocumentDto(
-                        DocumentDto.from(row.document()),
-                        row.distance(),
-                        row.matchedSnippet())
-                )
+        List<DocumentRepository.DocumentSearchRow> byEmbeddings =
+                documentRepository.searchWithEmbeddings(clientId, embeddingProvider.embed(query), MAX_DOCUMENT_RESULTS);
+
+
+        // todo could be optimized
+        return Stream.concat(lexically.stream(), byEmbeddings.stream())
+                .map(row -> new ScoredDocumentDto(DocumentDto.from(row.document()), row.score(), row.matchedSnippet(), row.lexically()))
+                .sorted(Comparator.comparingDouble(ScoredDocumentDto::score).reversed())
+                // only unique documents
+                .collect(Collectors.toMap(
+                        dto -> dto.document().id(),
+                        Function.identity(),
+                        (existing, _) -> existing
+                ))
+                .values().stream()
+                .sorted(Comparator.comparingDouble(ScoredDocumentDto::score).reversed())
                 .limit(MAX_DOCUMENT_RESULTS)
-                .sorted(Comparator.comparingDouble(ScoredDocumentDto::distance))
                 .toList();
     }
 }
