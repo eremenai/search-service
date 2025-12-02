@@ -16,26 +16,6 @@ services:
       retries: 5
     restart: unless-stopped
 
-  search-service:
-    build:
-      context: ../../search-service
-      dockerfile: Dockerfile
-    image: search-service:local
-    container_name: search-service-app
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      DB_URL: jdbc:postgresql://postgres:5432/search_service
-      DB_USERNAME: search_service
-      DB_PASSWORD: search_service
-      EMBEDDING_PROVIDER: mock
-    ports:
-      - "8080:8080"
-    restart: unless-stopped
-    profiles:
-      - app
-
   embeddings:
     build:
       context: ../../embeddings-calculation-service
@@ -50,25 +30,25 @@ services:
     profiles:
       - embed
 
-#  search-service-embed:
-#    build:
-#      context: ../../search-service
-#      dockerfile: Dockerfile
-#    image: search-service:local
-#    container_name: search-service-app-embed
-#    depends_on:
-#      postgres:
-#        condition: service_healthy
-#      embeddings:
-#        condition: service_started
-#    environment:
-#      DB_URL: jdbc:postgresql://postgres:5432/search_service
-#      DB_USERNAME: search_service
-#      DB_PASSWORD: search_service
-#      EMBEDDING_PROVIDER: http
-#      EMBEDDING_BASE_URL: http://embeddings:8000
-#    ports:
-#      - "8080:8080"
-#    restart: unless-stopped
-#    profiles:
-#      - embed
+  search-service-embed:
+    build:
+      context: ../../search-service
+      dockerfile: Dockerfile
+    image: search-service:local
+    container_name: search-service-app-embed
+    depends_on:
+      postgres:
+        condition: service_healthy
+      embeddings:
+        condition: service_started
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/search_service
+      DB_USERNAME: search_service
+      DB_PASSWORD: search_service
+      EMBEDDING_PROVIDER: http
+      EMBEDDING_BASE_URL: http://embeddings:8000
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    profiles:
+      - embed
