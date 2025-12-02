@@ -60,9 +60,10 @@ docker run -p 8080:8080 ^
 ## Docker Compose options
 - Run these from the repository root so the build context resolves correctly.
 - Database only (default): `docker compose -f devops/local/docker-compose.yml up -d` (or target explicitly with `... up -d postgres`)
-- Database + Java service: `docker compose -f devops/local/docker-compose.yml --profile app up -d`
-- Database + Java service + embeddings provider (Java configured for HTTP embeddings): `docker compose -f devops/local/docker-compose.yml --profile embed up -d`  
-  This starts the FastAPI embeddings-calculation-service and the Java app with `EMBEDDING_PROVIDER=http` pointing at the embeddings container. Avoid running `--profile app` and `--profile embed` together since both map port 8080.
+- Database + Java service + embeddings provider (Java configured for HTTP embeddings, summary provider mocked): `docker compose -f devops/local/docker-compose.yml --profile embed up -d`
+- Full stack (Postgres + embeddings + Java service + summary-service): `docker compose -f devops/local/docker-compose.yml --profile all up -d`  
+  This starts the FastAPI embeddings-calculation-service, the Java app configured with `EMBEDDING_PROVIDER=http` and `SUMMARY_PROVIDER=http` pointing at the companion containers, and the Python summary-service on port `8100`.
+  Avoid running `--profile embed` and `--profile all` at the same time since both map the Java service to port 8080.
 
 ## Useful links
 - Design document: `docs/design.md`

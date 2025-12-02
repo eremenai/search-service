@@ -10,6 +10,7 @@ public record DocumentWithContentDto(
         UUID clientId,
         String title,
         String content,
+        String summary,
         OffsetDateTime createdAt
 ) {
     public static DocumentWithContentDto from(Document document) {
@@ -18,7 +19,19 @@ public record DocumentWithContentDto(
                 document.clientId(),
                 document.title(),
                 document.content(),
+                document.summary(),
                 document.createdAt()
+        );
+    }
+
+    public DocumentWithContentDto addSummary(String summary) {
+        return new DocumentWithContentDto(
+                id,
+                clientId,
+                title,
+                content,
+                summary,
+                createdAt
         );
     }
 }

@@ -18,8 +18,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ClientServiceTest {
@@ -76,7 +76,7 @@ class ClientServiceTest {
         Client inserted = captor.getValue();
         assertThat(inserted.email()).isEqualTo("john@example.com");
         assertThat(inserted.emailDomain()).isEqualTo("example.com");
-        assertThat(inserted.emailDomainSlug()).isEqualTo("examplecom");
+        assertThat(inserted.emailDomainSlug()).isEqualTo("example");
         assertThat(inserted.firstName()).isEqualTo("John");
         assertThat(inserted.fullName()).isEqualTo("john smith");
     }

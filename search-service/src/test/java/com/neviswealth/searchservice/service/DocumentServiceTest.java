@@ -11,6 +11,7 @@ import com.neviswealth.searchservice.embedding.EmbeddingFailedException;
 import com.neviswealth.searchservice.embedding.EmbeddingProvider;
 import com.neviswealth.searchservice.persistence.ClientRepository;
 import com.neviswealth.searchservice.persistence.DocumentRepository;
+import com.neviswealth.searchservice.summary.SummaryProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -39,6 +40,8 @@ class DocumentServiceTest {
     private ChunkingStrategy chunkingStrategy;
     @Mock
     private EmbeddingProvider embeddingProvider;
+    @Mock
+    private SummaryProvider summaryProvider;
 
     @InjectMocks
     private DocumentService documentService;
@@ -136,6 +139,35 @@ class DocumentServiceTest {
 
         assertThat(dto.id()).isEqualTo(docId);
         assertThat(dto.content()).isEqualTo("Body");
+    }
+
+    @Test
+    void generatesSummaryWhenMissing() {
+        UUID docId = UUID.randomUUID();
+        UUID clientId = UUID.randomUUID();
+        Document doc = new Document(docId, clientId, "Title", "Body", "hash", null, OffsetDateTime.now());
+        when(documentRepository.findById(docId)).thenReturn(java.util.Optional.of(doc));
+        when(summaryProvider.summary("Body")).thenReturn("short summary");
+
+        var dto = documentService.getDocument(docId);
+
+        assertThat(dto.summary()).isEqualTo("short summary");
+        verify(summaryProvider, times(1)).summary("Body");
+        verify(documentRepository).updateDocumentWithSummary(docId, "short summary");
+    }
+
+    @Test
+    void reusesExistingSummaryWithoutCallingProvider() {
+        UUID docId = UUID.randomUUID();
+        UUID clientId = UUID.randomUUID();
+        Document doc = new Document(docId, clientId, "Title", "Body", "hash", "existing summary", OffsetDateTime.now());
+        when(documentRepository.findById(docId)).thenReturn(java.util.Optional.of(doc));
+
+        var dto = documentService.getDocument(docId);
+
+        assertThat(dto.summary()).isEqualTo("existing summary");
+        verify(summaryProvider, never()).summary(any());
+        verify(documentRepository, never()).updateDocumentWithSummary(any(), any());
     }
 
     @Test

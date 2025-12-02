@@ -31,6 +31,12 @@ embedding:
     base-url: ${EMBEDDING_BASE_URL:http://localhost:8000}
     api-token: ${EMBEDDING_API_TOKEN:}
 
+summary:
+  provider: http
+  http:
+    base-url: ${SUMMARY_BASE_URL:http://localhost:8100}
+    api-token: ${SUMMARY_API_TOKEN:}
+
 chunking:
   max-chars: 500
 

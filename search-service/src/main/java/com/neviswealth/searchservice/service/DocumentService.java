@@ -12,6 +12,8 @@ import com.neviswealth.searchservice.embedding.EmbeddingFailedException;
 import com.neviswealth.searchservice.embedding.EmbeddingProvider;
 import com.neviswealth.searchservice.persistence.ClientRepository;
 import com.neviswealth.searchservice.persistence.DocumentRepository;
+import com.neviswealth.searchservice.summary.SummaryProvider;
+import com.neviswealth.searchservice.util.SingleFlightLoader;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,15 +34,20 @@ public class DocumentService {
     private final ClientRepository clientRepository;
     private final ChunkingStrategy chunkingStrategy;
     private final EmbeddingProvider embeddingProvider;
+    private final SummaryProvider summaryProvider;
+    private final SingleFlightLoader<UUID, String> summaryLoader;
 
     public DocumentService(DocumentRepository documentRepository,
                            ClientRepository clientRepository,
                            ChunkingStrategy chunkingStrategy,
-                           EmbeddingProvider embeddingProvider) {
+                           EmbeddingProvider embeddingProvider,
+                           SummaryProvider summaryProvider) {
         this.documentRepository = documentRepository;
         this.clientRepository = clientRepository;
         this.chunkingStrategy = chunkingStrategy;
         this.embeddingProvider = embeddingProvider;
+        this.summaryProvider = summaryProvider;
+        this.summaryLoader = new SingleFlightLoader<>();
     }
 
     @Transactional
@@ -73,10 +80,26 @@ public class DocumentService {
         return DocumentDto.from(saved);
     }
 
+    @Transactional
     public DocumentWithContentDto getDocument(UUID documentId) {
-        return documentRepository.findById(documentId)
-                .map(DocumentWithContentDto::from)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found"));
+        var document = documentRepository.findById(documentId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found"));
+        var dto = DocumentWithContentDto.from(document);
+
+        if (document.summary() == null) {
+            dto = dto.addSummary(summaryLoader.load(documentId, () -> loadSummary(document)));
+        }
+
+        return dto;
+    }
+
+    private String loadSummary(Document document) {
+        String summary = summaryProvider.summary(document.content());
+
+        if (summary != null) {
+            documentRepository.updateDocumentWithSummary(document.id(), summary);
+        }
+
+        return summary;
     }
 
     private List<Chunk> chunkContent(String title, String content) {

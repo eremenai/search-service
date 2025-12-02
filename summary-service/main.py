@@ -1,6 +1,12 @@
+import logging
+
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 from transformers import pipeline
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Summarization Service")
 
@@ -8,7 +14,7 @@ summarizer = None
 
 
 class SummarizeRequest(BaseModel):
-    text: str
+    text: str = Field(..., min_length=1, description="Input text to summarize")
     max_tokens: int = 128
     min_tokens: int = 32
 
@@ -27,12 +33,23 @@ def load_model():
     - smaller and faster than facebook/bart-large-cnn
     """
     global summarizer
+    model = "sshleifer/distilbart-cnn-12-6"
+    logger.info("Loading model %s" % model)
     summarizer = pipeline(
         "summarization",
-        model="sshleifer/distilbart-cnn-12-6",
+        model=model,
         device_map="auto",  # use GPU if available, otherwise CPU
     )
+    logger.info("Model loaded")
 
+# Permissive CORS to simplify local/testing use; adjust for production.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/summarize", response_model=SummarizeResponse)
 def summarize(req: SummarizeRequest):

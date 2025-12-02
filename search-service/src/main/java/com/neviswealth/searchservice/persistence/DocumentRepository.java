@@ -170,6 +170,16 @@ public class DocumentRepository {
         return jdbcTemplate.query("Select * from documents", NO_CONTENT_DOCUMENT_ROW_MAPPER);
     }
 
+    public void updateDocumentWithSummary(UUID id, String summary) {
+        String query = "update documents set summary = :summary where id = :id";
+
+        var params = new MapSqlParameterSource()
+                .addValue("id", id)
+                .addValue("summary", summary);
+
+        jdbcTemplate.update(query, params);
+    }
+
     private static class FullDocumentRowMapper implements RowMapper<Document> {
         @Override
         public Document mapRow(ResultSet rs, int rowNum) throws SQLException {

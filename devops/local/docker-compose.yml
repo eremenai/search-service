@@ -16,19 +16,55 @@ services:
       retries: 5
     restart: unless-stopped
 
+  search-service-with-external:
+    build:
+      context: ../../search-service
+      dockerfile: Dockerfile
+    image: search-service:local
+    container_name: search-service-app-with-external
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/search_service
+      DB_USERNAME: search_service
+      DB_PASSWORD: search_service
+      EMBEDDING_PROVIDER: http
+      EMBEDDING_BASE_URL: <EMBEDDING PROVIDER URL>
+      EMBEDDING_API_TOKEN: <TOKEN>
+      SUMMARY_PROVIDER: http
+      SUMMARY_BASE_URL: <SUMMARY PROVIDER URL>
+      SUMMARY_API_TOKEN: <TOKEN>
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    profiles:
+      - external
+
   embeddings:
     build:
       context: ../../embeddings-calculation-service
       dockerfile: Dockerfile
     image: embeddings-calculation-service:local
     container_name: search-service-embeddings
-    environment:
-      MODEL_NAME: BAAI/bge-small-en
     ports:
       - "8000:8000"
     restart: unless-stopped
     profiles:
       - embed
+      - all
+
+  summary:
+    build:
+      context: ../../summary-service
+      dockerfile: Dockerfile
+    image: summary-service:local
+    container_name: search-service-summary
+    ports:
+      - "8100:8100"
+    restart: unless-stopped
+    profiles:
+      - all
 
   search-service-embed:
     build:
@@ -47,8 +83,36 @@ services:
       DB_PASSWORD: search_service
       EMBEDDING_PROVIDER: http
       EMBEDDING_BASE_URL: http://embeddings:8000
+      SUMMARY_PROVIDER: mock
     ports:
       - "8080:8080"
     restart: unless-stopped
     profiles:
       - embed
+
+  search-service-all:
+    build:
+      context: ../../search-service
+      dockerfile: Dockerfile
+    image: search-service:local
+    container_name: search-service-app-all
+    depends_on:
+      postgres:
+        condition: service_healthy
+      embeddings:
+        condition: service_started
+      summary:
+        condition: service_started
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/search_service
+      DB_USERNAME: search_service
+      DB_PASSWORD: search_service
+      EMBEDDING_PROVIDER: http
+      EMBEDDING_BASE_URL: http://embeddings:8000
+      SUMMARY_PROVIDER: http
+      SUMMARY_BASE_URL: http://summary:8100
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    profiles:
+      - all

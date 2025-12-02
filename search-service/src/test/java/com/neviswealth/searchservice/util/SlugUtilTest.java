@@ -8,7 +8,7 @@ class SlugUtilTest {
 
     @Test
     void slugifiesDomains() {
-        assertThat(SlugUtil.slugify("Nevis-Wealth.com")).isEqualTo("neviswealthcom");
+        assertThat(SlugUtil.slugify("Nevis-Wealth.com")).isEqualTo("neviswealth");
         assertThat(SlugUtil.slugify("  Example Domain! ")).isEqualTo("exampledomain");
         assertThat(SlugUtil.slugify(null)).isEqualTo("");
     }

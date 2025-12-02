@@ -1,6 +1,5 @@
 package com.neviswealth.searchservice.config;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -8,14 +7,11 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
 import org.springframework.validation.annotation.Validated;
 
 @Validated
-@ConfigurationProperties(prefix = "embedding")
-public class EmbeddingProperties {
+@ConfigurationProperties(prefix = "summary")
+public class SummaryProperties {
 
     @NotNull
     private ProviderType provider = ProviderType.MOCK;
-
-    @Min(1)
-    private int dimension = 768;
 
     @NestedConfigurationProperty
     private final Http http = new Http();
@@ -26,14 +22,6 @@ public class EmbeddingProperties {
 
     public void setProvider(ProviderType provider) {
         this.provider = provider;
-    }
-
-    public int getDimension() {
-        return dimension;
-    }
-
-    public void setDimension(int dimension) {
-        this.dimension = dimension;
     }
 
     public Http getHttp() {
