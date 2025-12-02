@@ -18,6 +18,8 @@ class DocumentControllerTest extends AbstractIntegrationTest {
     @Autowired
     private ClientController clientController;
     @Autowired
+    private DocumentController documentController;
+    @Autowired
     private JdbcTemplate jdbcTemplate;
 
     @BeforeEach

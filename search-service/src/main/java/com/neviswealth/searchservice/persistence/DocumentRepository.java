@@ -1,5 +1,6 @@
 package com.neviswealth.searchservice.persistence;
 
+import com.neviswealth.searchservice.config.SearchingProperties;
 import com.neviswealth.searchservice.domain.Document;
 import com.neviswealth.searchservice.domain.DocumentChunk;
 import com.pgvector.PGvector;
@@ -25,9 +26,11 @@ public class DocumentRepository {
     private static final RowMapper<Document> NO_CONTENT_DOCUMENT_ROW_MAPPER = new NoContentDocumentRowMapper();
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final double threshold;
 
-    public DocumentRepository(NamedParameterJdbcTemplate jdbcTemplate) {
+    public DocumentRepository(NamedParameterJdbcTemplate jdbcTemplate, SearchingProperties properties) {
         this.jdbcTemplate = jdbcTemplate;
+        this.threshold = properties.getThreshold();
     }
 
     public Document insert(Document document) {
@@ -92,7 +95,7 @@ public class DocumentRepository {
                         d.created_at,
                         dc.content AS chunk_content,
                         CASE WHEN dc.content ILIKE '%' || :q || '%' THEN 1 ELSE 0 END AS prefix_match,
-                        similarity(dc.content, :q) as score,
+                        CASE WHEN dc.content ILIKE '%' || :q || '%' THEN 1 ELSE similarity(dc.content, :q) END as score,
                         ROW_NUMBER() OVER (
                             PARTITION BY d.id
                             ORDER BY
@@ -145,14 +148,15 @@ public class DocumentRepository {
                          JOIN documents d ON d.id = dc.document_id
                          WHERE :clientId::uuid IS NULL OR d.client_id = :clientId
                      ) ranked
-                WHERE rn = 1 AND score >= 0.01
+                WHERE rn = 1 AND score >= :threshold
                 ORDER BY score DESC
                 LIMIT :limit
                 """;
         var params = new MapSqlParameterSource()
                 .addValue("clientId", clientId, Types.OTHER)
                 .addValue("queryVector", new SqlParameterValue(Types.OTHER, new PGvector(queryVector)))
-                .addValue("limit", limit);
+                .addValue("limit", limit)
+                .addValue("threshold", threshold);
 
         return jdbcTemplate.query(sql, params, (rs, rowNum) -> new DocumentSearchRow(
                 NO_CONTENT_DOCUMENT_ROW_MAPPER.mapRow(rs, rowNum),

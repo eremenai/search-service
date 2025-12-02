@@ -32,4 +32,7 @@ embedding:
     api-token: ${EMBEDDING_API_TOKEN:}
 
 chunking:
-  max-chars: 100
+  max-chars: 500
+
+search:
+  threshold: 0.4

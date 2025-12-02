@@ -5,22 +5,20 @@ import com.neviswealth.searchservice.embedding.EmbeddingProvider;
 import com.neviswealth.searchservice.persistence.ClientRepository;
 import com.neviswealth.searchservice.persistence.DocumentRepository;
 import com.neviswealth.searchservice.util.SlugUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.*;
 
 @Service
 public class SearchService {
 
     private static final int MAX_CLIENT_RESULTS = 20;
     private static final int MAX_DOCUMENT_RESULTS = 10;
+    private static final Logger log = LoggerFactory.getLogger(SearchService.class);
 
     private final ClientRepository clientRepository;
     private final DocumentRepository documentRepository;
@@ -39,12 +37,16 @@ public class SearchService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Query 'q' is required");
         }
         if (clientId != null) {
+            log.info("Searching will be implemented only for client with id {}. Not searching for other clients", clientId);
             if (!clientRepository.existsById(clientId)) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Client not found");
             }
         }
 
-        return new SearchResultDto(searchClients(query), searchDocuments(query, clientId));
+        return new SearchResultDto(
+                clientId == null ? searchClients(query) : null,
+                searchDocuments(query, clientId)
+        );
     }
 
     private List<ScoredClientDto> searchClients(String query) {
@@ -72,20 +74,26 @@ public class SearchService {
         List<DocumentRepository.DocumentSearchRow> byEmbeddings =
                 documentRepository.searchWithEmbeddings(clientId, embeddingProvider.embed(query), MAX_DOCUMENT_RESULTS);
 
-
-        // todo could be optimized
-        return Stream.concat(lexically.stream(), byEmbeddings.stream())
-                .map(row -> new ScoredDocumentDto(DocumentDto.from(row.document()), row.score(), row.matchedSnippet(), row.lexically()))
-                .sorted(Comparator.comparingDouble(ScoredDocumentDto::score).reversed())
-                // only unique documents
-                .collect(Collectors.toMap(
-                        dto -> dto.document().id(),
-                        Function.identity(),
-                        (existing, _) -> existing
-                ))
-                .values().stream()
+        return mergeResults(lexically, byEmbeddings).stream()
                 .sorted(Comparator.comparingDouble(ScoredDocumentDto::score).reversed())
                 .limit(MAX_DOCUMENT_RESULTS)
                 .toList();
+    }
+
+    private Collection<ScoredDocumentDto> mergeResults(List<DocumentRepository.DocumentSearchRow> lexically, List<DocumentRepository.DocumentSearchRow> byEmbeddings) {
+
+        // score = (lexical_score + 1) / 2   +  embedding_score
+        var combined = new HashMap<UUID, ScoredDocumentDto>();
+
+        for (DocumentRepository.DocumentSearchRow row : lexically) {
+            combined.computeIfAbsent(row.document().id(), (k) -> new ScoredDocumentDto(DocumentDto.from(row.document()), row.score() / 2 + 0.5, row.matchedSnippet(), row.lexically()));
+        }
+
+        for (DocumentRepository.DocumentSearchRow row : byEmbeddings) {
+            // add score from embeddings
+            combined.computeIfPresent(row.document().id(), (k, dto) -> dto.updateScore(prev -> prev + row.score()));
+            combined.computeIfAbsent(row.document().id(), (k) -> new ScoredDocumentDto(DocumentDto.from(row.document()), row.score(), row.matchedSnippet(), row.lexically()));
+        }
+        return combined.values();
     }
 }

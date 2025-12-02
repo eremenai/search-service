@@ -169,10 +169,10 @@ databaseChangeLog:
               CREATE INDEX IF NOT EXISTS idx_clients_email_domain_trgm ON clients USING gin (email_domain gin_trgm_ops);
               CREATE INDEX IF NOT EXISTS idx_clients_email_domain_slug_trgm ON clients USING gin (email_domain_slug gin_trgm_ops);
               CREATE INDEX IF NOT EXISTS idx_clients_full_name_trgm ON clients USING gin (full_name gin_trgm_ops);
-#        - sql:
-#            comment: IVFFlat index for vector search on document chunks
-#            sql: |
-#              CREATE INDEX IF NOT EXISTS idx_document_chunks_embedding
-#              ON document_chunks
-#              USING ivfflat (embedding vector_l2_ops)
-#              WITH (lists = 100);
+        - sql:
+            comment: IVFFlat index for vector search on document chunks
+            sql: |
+              CREATE INDEX IF NOT EXISTS idx_document_chunks_embedding
+              ON document_chunks
+              USING ivfflat (embedding vector_l2_ops)
+              WITH (lists = 100);

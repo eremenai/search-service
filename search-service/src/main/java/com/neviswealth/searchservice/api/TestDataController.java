@@ -6,7 +6,9 @@ import com.neviswealth.searchservice.api.dto.CreateDocumentRequest;
 import com.neviswealth.searchservice.service.ClientService;
 import com.neviswealth.searchservice.service.DocumentService;
 import org.springframework.context.annotation.Profile;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -17,10 +19,17 @@ public class TestDataController {
 
     private final ClientService clientService;
     private final DocumentService documentService;
+    private final JdbcTemplate jdbcTemplate;
 
-    public TestDataController(ClientService clientService, DocumentService documentService) {
+    public TestDataController(ClientService clientService, DocumentService documentService, JdbcTemplate jdbcTemplate) {
         this.clientService = clientService;
         this.documentService = documentService;
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    @PostMapping
+    public void wipeOut() {
+        jdbcTemplate.execute("truncate table clients cascade");
     }
 
     @GetMapping("/simple")
@@ -227,18 +236,23 @@ public class TestDataController {
         ClientDto helenaCosta = clientService.createClient(
                 new CreateClientRequest("Helena", "Costa", "helena.costa@atlanticbridge.pt", "PT"));
 
+        // Additional documents to bring your dataset up to ~30 diverse KYC / non-KYC docs.
 
-// Emma Jones – 3 documents
+// Emma Jones – identity, income follow-up, misc identity-related
         documentService.createDocument(
                 emmaJones.id(),
                 new CreateDocumentRequest(
-                        "Electricity bill November 2025 – proof of address",
+                        "Video identification session log – Emma Jones",
                         """
-                        Monthly electricity bill for the billing period 01–30 November 2025 for Emma Jones.
-                        The invoice lists the supply address in Manchester, the account number, meter readings and total amount due.
-                        It clearly shows Emma Jones as the account holder and repeats her residential address on the first page and on the payment slip.
-                        This electricity bill is typically accepted by banks and wealth managers as a primary proof of address,
-                        provided it is recent (usually not older than three months) and shows the same address as used during onboarding.
+                        This log records the remote video identification session conducted with Emma Jones. The analyst verified that
+                        the person on the call matched the photograph on the passport and that the name, date of birth and document
+                        number were consistent with the copy previously uploaded to the system. During the call, Emma was asked to tilt
+                        the passport to show holographic security features and to read out specific details from the biographical page.
+        
+                        The session notes confirm that the internet connection remained stable, no third parties appeared on screen and
+                        there were no suspicious delays when Emma was asked to perform simple actions such as turning the document or
+                        covering parts of it with a finger. The analyst concluded that the video identification successfully supports
+                        the passport as a genuine proof of identity for Emma Jones.
                         """
                 )
         );
@@ -246,13 +260,17 @@ public class TestDataController {
         documentService.createDocument(
                 emmaJones.id(),
                 new CreateDocumentRequest(
-                        "Current account statement October 2025",
+                        "Email follow-up – missing payslip for September",
                         """
-                        Current account statement for Emma Jones covering the period from 1 October 2025 to 31 October 2025.
-                        The statement lists all incoming salary credits, card transactions, standing orders and transfers between accounts.
-                        In the header, the document displays Emma's full name and correspondence address, along with the IBAN and BIC of the account.
-                        Some institutions accept a recent bank statement as an alternative address proof when a utility bill is not available,
-                        but the primary classification of this document is a financial statement and evidence of banking activity.
+                        This document summarises the email exchange between the onboarding team and Emma Jones regarding a missing
+                        payslip. Emma had initially provided the August and October 2025 salary slips, but the September payslip was
+                        not included. The first email politely requested that she upload or email the missing document so that her
+                        income history would be complete for the three-month assessment window.
+        
+                        Emma replied that she had temporarily misplaced the PDF, but would download it again from the employer portal
+                        and forward it to the team. The thread concludes with a confirmation from the analyst that the September
+                        payslip was received and successfully added to the “proof of income” documentation set. The emails are not
+                        used as proof of income themselves; they simply document the request and completion of the requirement.
                         """
                 )
         );
@@ -260,28 +278,37 @@ public class TestDataController {
         documentService.createDocument(
                 emmaJones.id(),
                 new CreateDocumentRequest(
-                        "Employer letter – role and income confirmation",
+                        "Name change note – passport vs employer records",
                         """
-                        Formal employer letter issued by Shoreview Wealth confirming the role and income of Emma Jones.
-                        The letter states her job title, permanent employment status, gross annual salary and the date she joined the company.
-                        It is signed on company letterhead that includes the employer's address and contact information.
-                        This letter is considered proof of income and employment rather than proof of address,
-                        although the presence of the company address and the employee's details can be used as supporting information in some jurisdictions.
+                        This note explains a minor discrepancy in Emma Jones's documentation where the employer records still show
+                        her previous surname. Emma recently reverted from a double-barrelled surname to her original maiden name,
+                        which is now reflected on her passport and bank account. However, the HR system at Shoreview Wealth still
+                        displays the older version of her name in the internal directory and on payslips.
+        
+                        The analyst records that Emma provided a copy of the official name change certificate and that the passport
+                        and bank details are aligned with the new name. The employer has confirmed that payroll will be updated at
+                        the next cycle. This note clarifies that the discrepancy is purely administrative and does not represent a
+                        KYC risk, and it is stored as an identity reconciliation comment rather than a separate proof document.
                         """
                 )
         );
 
 
-// Carlos Pereira – 2 documents
+// Carlos Pereira – employment checks, income stability, PEP screening
         documentService.createDocument(
                 carlosPereira.id(),
                 new CreateDocumentRequest(
-                        "Water utility bill August 2025",
+                        "HR verification call summary – Tagus Advisors",
                         """
-                        Water utility bill issued to Carlos Pereira for his apartment in Lisbon for the period 01–31 August 2025.
-                        The bill shows the supply address, contract number, meter readings and a detailed breakdown of water and sewage charges.
-                        It identifies Carlos as the contract holder and states clearly that it is a residential service account.
-                        This document is commonly accepted as a utility bill that can serve as proof of address for regulatory checks and onboarding.
+                        This summary documents a verification call placed by the onboarding team to the HR department of Tagus Advisors
+                        regarding the employment of Carlos Pereira. The HR contact confirmed Carlos's job title, start date, permanent
+                        contract status and that he is employed on a full-time basis. No discrepancies were identified between the HR
+                        confirmation and the employment contract previously submitted by Carlos.
+        
+                        The HR representative also confirmed that there were no known plans to terminate or materially alter Carlos's
+                        contract at the time of the call. The analyst concludes that the external verification supports the authenticity
+                        of the employment documents and that the employment data can be relied upon for affordability and suitability
+                        analysis.
                         """
                 )
         );
@@ -289,42 +316,55 @@ public class TestDataController {
         documentService.createDocument(
                 carlosPereira.id(),
                 new CreateDocumentRequest(
-                        "Portuguese tenancy agreement 2024–2026",
+                        "Internal credit committee note – income stability assessment",
                         """
-                        Fixed-term tenancy agreement for Carlos Pereira covering the rental period from 1 September 2024 to 31 August 2026.
-                        The contract specifies the rented property address in Lisbon, monthly rent, deposit amount, and responsibilities for utilities.
-                        It is signed by both the landlord and Carlos, and includes identification details for both parties.
-                        While the primary purpose is to define the rental relationship, many compliance teams accept a signed tenancy contract
-                        as supporting proof of address, especially when utility bills are not yet available or are issued in the landlord's name.
-                        """
-                )
-        );
-
-
-// Lukas Novak – 3 documents
-        documentService.createDocument(
-                lukasNovak.id(),
-                new CreateDocumentRequest(
-                        "Gas bill September 2025 – residential supply",
-                        """
-                        Gas bill for Lukas Novak for the billing period 01–30 September 2025.
-                        The invoice lists the supply address in Prague, customer number, meter reading history and applicable tariffs.
-                        It clearly labels the account as a residential customer account and includes Lukas as the named contract holder.
-                        Financial institutions frequently treat such a gas bill as valid address verification documentation when onboarding a new client.
+                        This note reflects the internal credit committee’s discussion about the stability of Carlos Pereira’s income.
+                        The committee reviewed his three-month payslip history, the employer letter and the HR verification call
+                        summary. They noted that Carlos’s base salary is substantial and regular, and that his bonus payments have
+                        been consistent over several years according to previous account statements.
+        
+                        The committee concluded that Carlos’s income is stable enough to support the level of investment and credit
+                        products requested, provided that his existing commitments remain unchanged. The note records that this
+                        conclusion is based purely on income stability and does not address other KYC dimensions such as address,
+                        tax residency or source of funds, which are documented separately.
                         """
                 )
         );
 
         documentService.createDocument(
+                carlosPereira.id(),
+                new CreateDocumentRequest(
+                        "Client declaration – no political exposure",
+                        """
+                        This document records a signed declaration from Carlos Pereira stating that neither he nor any close family
+                        members or associates hold prominent public functions that would make him a politically exposed person (PEP).
+                        The declaration was completed as part of the standard onboarding process and is stored together with other
+                        AML and sanctions-related documentation.
+        
+                        The compliance officer reviewed publicly available information and internal PEP screening results, finding
+                        no evidence that contradicts Carlos’s declaration. As a result, Carlos is classified as a non-PEP client.
+                        The document is tagged under “PEP / AML declarations” and is not used for proof of address, income or tax
+                        residency purposes.
+                        """
+                )
+        );
+
+
+// Lukas Novak – enhanced due diligence, investment knowledge, travel notes
+        documentService.createDocument(
                 lukasNovak.id(),
                 new CreateDocumentRequest(
-                        "Investment portfolio statement Q3 2025",
+                        "Enhanced due diligence note – apartment sale proceeds",
                         """
-                        Quarterly investment portfolio statement for Lukas Novak issued by Danube Capital.
-                        The report summarises holdings in funds, bonds and equities, including valuations, performance and risk metrics.
-                        It contains Lukas's name and a correspondence address, but the primary focus of the document is on investment positions
-                        and historical performance rather than address verification.
-                        It is generally not considered a primary proof of address but may be used as a secondary supporting document.
+                        This enhanced due diligence note explains the assessment performed on the large inflow of funds from the sale
+                        of an apartment owned by Lukas Novak. The first section references the notarised sale contract and the land
+                        registry extract showing that Lukas was the legal owner of the property prior to the sale. The bank statement
+                        is reviewed to confirm that the incoming transfer matches the amount stated in the sale contract.
+        
+                        The second section documents the analyst’s conclusion that the transaction is consistent with Lukas’s declared
+                        source of wealth. No unusual pricing or hidden counterparties were identified, and the funds were transferred
+                        directly from the buyer’s bank to Lukas’s account. The note records that this inflow is treated as legitimate
+                        property-sale proceeds and is fully acceptable as a source of funds for subsequent investments.
                         """
                 )
         );
@@ -332,27 +372,55 @@ public class TestDataController {
         documentService.createDocument(
                 lukasNovak.id(),
                 new CreateDocumentRequest(
-                        "National ID card copy – Czech Republic",
+                        "Investment experience and knowledge questionnaire – summary",
                         """
-                        Copy of the Czech national ID card belonging to Lukas Novak.
-                        The card shows his full name, date of birth, nationality and permanent residential address, along with a unique ID number.
-                        This document is primarily used to verify identity, but in some cases the address printed on the card is also accepted
-                        as proof of address by banks and brokers, depending on local regulatory requirements.
+                        This summary captures the key points from Lukas Novak’s investment experience and knowledge questionnaire.
+                        Lukas reports several years of experience investing in mutual funds and listed equities, and occasional use
+                        of simple exchange-traded funds. He states that he understands basic concepts such as diversification, market
+                        volatility and long-term investing.
+        
+                        However, Lukas indicates that he has little to no experience with complex products such as options, futures,
+                        leveraged ETFs or structured notes. The analyst categorises his knowledge level as “intermediate” and notes
+                        that any recommendations should focus on plain-vanilla funds and securities. The document is tagged under
+                        “knowledge and experience” and is used in conjunction with his risk profile to determine product suitability.
+                        """
+                )
+        );
+
+        documentService.createDocument(
+                lukasNovak.id(),
+                new CreateDocumentRequest(
+                        "Travel history note – unrelated to tax residency",
+                        """
+                        This note briefly records a conversation in which Lukas Novak mentioned frequent short trips to various
+                        countries for conferences and leisure. He described attending technology events in different European cities
+                        and occasionally extending his stays for tourism. The note clarifies that these trips are short-term visits
+                        and do not imply additional tax residency obligations.
+        
+                        The compliance officer explicitly records that, based on the information provided, Lukas’s travel history is
+                        not considered relevant for CRS or FATCA classification. The note is stored only as contextual information and
+                        must not be interpreted as an indication of multiple tax residencies or permanent establishment in other
+                        jurisdictions.
                         """
                 )
         );
 
 
-// Fatima Rahman – 2 documents
+// Fatima Rahman – suitability, reminders, non-KYC complaint
         documentService.createDocument(
                 fatimaRahman.id(),
                 new CreateDocumentRequest(
-                        "Council tax bill 2025–2026",
+                        "Suitability assessment summary – multi-asset mandate",
                         """
-                        Annual council tax bill for the property occupied by Fatima Rahman for the tax year 2025–2026.
-                        The bill shows the property address in Birmingham, council reference number, and the total annual amount payable in instalments.
-                        It is addressed directly to Fatima and is considered a strong document for verifying residential address.
-                        Many institutions treat a council tax bill as equivalent to a utility bill in terms of address verification strength.
+                        This document summarises the suitability assessment performed for Fatima Rahman in relation to a discretionary
+                        multi-asset mandate. The analysis takes into account her risk profile, investment horizon, income stability and
+                        existing financial commitments. The first section explains why a diversified blend of equity and bond funds is
+                        considered appropriate given her “balanced to growth” risk category.
+        
+                        The second section evaluates whether the proposed mandate is consistent with Fatima’s stated objectives and
+                        capacity for loss. Stress tests and historical drawdown scenarios are described, and it is noted that the
+                        potential losses in adverse markets remain within the bounds Fatima indicated as tolerable. The document is
+                        tagged as “suitability assessment” and is distinct from basic KYC documents such as identity or address proofs.
                         """
                 )
         );
@@ -360,42 +428,54 @@ public class TestDataController {
         documentService.createDocument(
                 fatimaRahman.id(),
                 new CreateDocumentRequest(
-                        "Salary slip October 2025",
+                        "Email reminder thread – outstanding self-certification",
                         """
-                        Monthly salary slip for October 2025 for Fatima Rahman, employed as a senior analyst at Crescent Advisors.
-                        The payslip details gross salary, deductions (tax, national insurance, pension contributions) and net pay received.
-                        It includes the employer's address and payroll contact information.
-                        This document is used as proof of income and is generally not sufficient on its own as proof of address,
-                        although some lenders ask for both a payslip and a recent utility bill as part of their checks.
-                        """
-                )
-        );
-
-
-// Oliver Brown – 3 documents
-        documentService.createDocument(
-                oliverBrown.id(),
-                new CreateDocumentRequest(
-                        "Internet bill October 2025 – address verification candidate",
-                        """
-                        Monthly internet service bill for Oliver Brown for October 2025.
-                        The invoice lists the installation address in Dublin, the customer reference, service description and subscription charges.
-                        Although internet bills are not always treated as traditional utility bills, many financial institutions accept them
-                        as an address verification document when other utility bills (electricity, gas, water) are not available.
+                        This thread summarises a series of reminder emails sent to Fatima Rahman regarding an outstanding tax
+                        self-certification form. The initial email politely requested that she complete the CRS/FATCA form to confirm
+                        her tax residency status. Follow-up messages were sent at weekly intervals, each reiterating that the form was
+                        required before certain account features could be activated.
+        
+                        Eventually, Fatima replied with an apology for the delay and attached the completed and signed self-certification.
+                        The analyst recorded the date of receipt and marked the tax residency requirement as fulfilled. The emails
+                        themselves are not treated as tax residency evidence; they simply document the chase process and resolution.
                         """
                 )
         );
 
         documentService.createDocument(
+                fatimaRahman.id(),
+                new CreateDocumentRequest(
+                        "Service complaint log – mobile app login issue",
+                        """
+                        This log relates to a service complaint raised by Fatima Rahman about difficulties logging into the mobile
+                        application. The first entry notes that she experienced repeated login failures and error messages when trying
+                        to access her portfolio on a Sunday evening. Support staff captured screenshots and device information to help
+                        reproduce the issue.
+        
+                        Subsequent entries record the investigation and resolution steps, including an update from IT that a temporary
+                        authentication outage had affected a subset of users. Once the issue was resolved, Fatima confirmed that she
+                        could log in again without problems. The log is explicitly marked as non-KYC and non-advisory; it is purely
+                        operational and has no bearing on identity, address, income, risk or tax residency assessments.
+                        """
+                )
+        );
+
+
+// Oliver Brown – sanctions, CRS data review, investment meeting
+        documentService.createDocument(
                 oliverBrown.id(),
                 new CreateDocumentRequest(
-                        "Proof of address guidance note",
+                        "Sanctions and watchlist screening result – Oliver Brown",
                         """
-                        Internal guidance note for Oliver Brown outlining which documents the firm accepts as proof of address.
-                        The note lists electricity bills, gas bills, water bills, council tax bills and bank statements as acceptable documents.
-                        It explicitly mentions that a recent utility bill or council tax bill not older than three months should be provided,
-                        and that online printouts may need to show a full address and client name.
-                        The note itself is not a proof of address, but it clearly describes the role a utility bill plays in address verification.
+                        This document records the outcome of the sanctions and adverse-media screening checks performed for Oliver
+                        Brown. The screening tool searched multiple sanctions lists, law-enforcement databases and news sources for
+                        matches to Oliver’s name, date of birth and residency details. Several potential name-only hits were reviewed
+                        and dismissed as false positives because key identifiers did not match.
+        
+                        The final section confirms that no relevant sanctions, law-enforcement or negative media entries were found
+                        for Oliver at the time of onboarding. The result is classified as “sanctions screening – clear” and is stored
+                        under AML documentation. It is explicitly noted that this document is unrelated to proof of address, income
+                        or tax residency; it solely reflects the outcome of sanctions and watchlist checks.
                         """
                 )
         );
@@ -403,42 +483,108 @@ public class TestDataController {
         documentService.createDocument(
                 oliverBrown.id(),
                 new CreateDocumentRequest(
-                        "Harborstone Bank account opening confirmation",
+                        "CRS data quality review note – Oliver Brown",
                         """
-                        Confirmation letter from Harborstone Bank confirming that Oliver Brown's current account has been successfully opened.
-                        The letter references the account number, opening date and branch location.
-                        It repeats the correspondence address provided by Oliver at onboarding, but the main purpose of the letter is to confirm account setup.
-                        It is generally not treated as a primary proof of address unless explicitly specified by the bank's policies.
+                        This note describes a periodic review of CRS data quality for the client Oliver Brown. The reviewer compared
+                        the tax residency and taxpayer identification number stored in the system with the most recent self-certification
+                        and identification documents on file. No inconsistencies were found between Oliver’s declared tax residency,
+                        his address and the country of issue of his passport.
+        
+                        The reviewer also checked that Oliver’s account is correctly flagged in the reporting engine and that no
+                        obsolete secondary residencies remain in the data. The note concludes that the CRS data set is accurate and
+                        up-to-date. It is stored as “CRS data quality review” and is separate from broader onboarding documents such
+                        as proof of address or risk profile.
+                        """
+                )
+        );
+
+        documentService.createDocument(
+                oliverBrown.id(),
+                new CreateDocumentRequest(
+                        "Meeting minutes – investment performance review",
+                        """
+                        These minutes summarise a scheduled meeting with Oliver Brown focusing on the performance of his existing
+                        investment portfolio. The first part recaps recent market developments and how they affected his equity and
+                        bond holdings. Oliver expressed mild concern about short-term volatility but confirmed that his long-term
+                        objectives and risk tolerance remain unchanged.
+        
+                        The second part lists agreed follow-up actions, including a minor rebalancing of certain fund positions and
+                        a review of fees for an underperforming product. No changes were made to Oliver’s risk profile, tax residency
+                        or KYC status during this meeting. The document is categorised as “advice / performance review” and is not
+                        used as identity or address documentation.
                         """
                 )
         );
 
 
-// Marta Rossi – 1 document
+// Marta Rossi – source of wealth, communication preferences, onboarding timeline
         documentService.createDocument(
                 martaRossi.id(),
                 new CreateDocumentRequest(
-                        "Rental contract Milan 2025–2027",
+                        "Source of wealth note – family business share sale",
                         """
-                        Residential rental contract for Marta Rossi for an apartment in Milan, covering the period from March 2025 to February 2027.
-                        The contract lists the property address, monthly rent, deposit, termination conditions and obligations for utilities.
-                        Both landlord and tenant have signed, with identification details provided for each.
-                        In practice, this contract can be used as supporting evidence of address, especially in combination with a recent utility bill.
+                        This note summarises the explanation provided by Marta Rossi regarding a significant part of her wealth. Marta
+                        reports that she held a minority share in a family-owned logistics company in northern Italy. When the company
+                        was sold to a larger international group, she received a lump-sum payment as part of the transaction.
+        
+                        The onboarding team reviewed the share purchase agreement, payment confirmation and historic dividend records
+                        to verify that this explanation is plausible and supported by documentation. The note concludes that the sale
+                        of the family business represents a legitimate and well-documented source of wealth for Marta, distinct from
+                        her regular employment income.
+                        """
+                )
+        );
+
+        documentService.createDocument(
+                martaRossi.id(),
+                new CreateDocumentRequest(
+                        "Communication preferences and language note",
+                        """
+                        This document records Marta Rossi’s communication preferences as captured during onboarding. She requested that
+                        formal documentation such as contracts and legal notices be provided in Italian wherever possible, while being
+                        comfortable with informal emails in English. She also indicated a preference for email over phone calls for
+                        non-urgent matters.
+        
+                        The note clarifies that these preferences do not affect the validity of KYC documents; they only guide how
+                        future information and disclosures should be presented. It is tagged as “communication preferences” and is
+                        unrelated to proof of identity, address, income, risk or tax residency.
+                        """
+                )
+        );
+
+        documentService.createDocument(
+                martaRossi.id(),
+                new CreateDocumentRequest(
+                        "Onboarding timeline explanation – delayed document delivery",
+                        """
+                        This note explains the slightly extended onboarding timeline for Marta Rossi. Due to travel and work
+                        commitments, Marta needed additional time to obtain certain documents, including translated versions of her
+                        Italian tax papers. The onboarding team agreed an extended deadline and documented interim checks to ensure
+                        that no accounts would be activated prematurely.
+        
+                        Once all required documents were received and validated, the onboarding status was updated to “complete”.
+                        The note makes clear that the delay was logistical rather than risk-driven, and that no additional red flags
+                        were identified as a result of the extended timeline.
                         """
                 )
         );
 
 
-// Jonas Schneider – 2 documents
+// Jonas Schneider – AML alerts, crypto explanation, random hiking chat
         documentService.createDocument(
                 jonasSchneider.id(),
                 new CreateDocumentRequest(
-                        "Combined energy bill September 2025",
+                        "AML monitoring alert review – large incoming transfer",
                         """
-                        Combined electricity and gas bill for Jonas Schneider for September 2025.
-                        The bill lists the supply address in Cologne, customer number, consumption data for both electricity and gas, and total charges.
-                        It indicates that the account is a private household account.
-                        This combined energy bill is regarded as a strong proof of address document for regulatory and onboarding checks.
+                        This document records the review of an automated AML monitoring alert triggered by a large incoming transfer
+                        to Jonas Schneider’s account. The transfer originated from another EU bank and was flagged because the amount
+                        exceeded the usual pattern of monthly inflows for Jonas. The analyst reviewed the payment reference and found
+                        that it matched a previously documented sale of an investment position.
+        
+                        After examining supporting documents and confirming that the source of funds had already been assessed and
+                        recorded, the analyst closed the alert as “explained and acceptable”. The note emphasises that the transaction
+                        is consistent with Jonas’s known financial profile and that no escalation is required. It is stored as part of
+                        ongoing AML monitoring records.
                         """
                 )
         );
@@ -446,44 +592,90 @@ public class TestDataController {
         documentService.createDocument(
                 jonasSchneider.id(),
                 new CreateDocumentRequest(
-                        "Rhein Invest portfolio overview",
+                        "Client follow-up – explanation of crypto cash-out",
                         """
-                        Portfolio overview for Jonas Schneider prepared by Rhein Invest.
-                        The report outlines his holdings in several investment funds, including risk categories and historical performance.
-                        It lists Jonas's name and a mailing address, but the report is not positioned as a document for address verification.
-                        Instead, it is used to explain investment positions and to support suitability assessments.
-                        """
-                )
-        );
-
-
-// Helena Costa – 2 documents
-        documentService.createDocument(
-                helenaCosta.id(),
-                new CreateDocumentRequest(
-                        "Water and sewage bill October 2025",
-                        """
-                        Water and sewage bill for Helena Costa for the month of October 2025.
-                        The invoice shows the service address in Porto, contract number, consumption volume, and tariff details.
-                        It is clearly addressed to Helena and is considered a classic utility bill that can act as proof of address.
-                        When combined with an identity document, it typically satisfies most onboarding address verification requirements.
+                        This note summarises a follow-up call during which Jonas Schneider explained a one-off cash-out from a crypto
+                        exchange that appeared in his transaction history. Jonas stated that the crypto position had been built over
+                        several years using small contributions from his salary and that he decided to liquidate the position when
+                        the price reached a personal target.
+        
+                        The analyst requested and received a statement from the exchange showing the transaction history and the final
+                        withdrawal to Jonas’s bank account. Based on this additional information, the cash-out is recorded as a
+                        legitimate source of funds with a clear audit trail. The note is tagged as “crypto – source of funds”.
                         """
                 )
         );
 
         documentService.createDocument(
-                helenaCosta.id(),
+                jonasSchneider.id(),
                 new CreateDocumentRequest(
-                        "Atlantic Bridge onboarding checklist",
+                        "Random chat notes – hiking gear and weekend plans",
                         """
-                        Onboarding checklist for Helena Costa prepared by Atlantic Bridge.
-                        The checklist explains that a recent utility bill, council tax bill or bank statement is required as proof of address,
-                        and that payslips and employment letters are requested as proof of income.
-                        It lists examples such as 'electricity bill', 'water bill' and 'gas bill' as acceptable address documents.
-                        The checklist itself is not a proof document, but it clarifies how a utility bill is used as address proof in the onboarding process.
+                        These notes capture a short, informal conversation with Jonas Schneider in which no financial or KYC topics
+                        were discussed. Jonas talked about testing a new hiking backpack and comparing different types of trail
+                        running shoes. He also mentioned considering a weekend trip to the mountains if the weather allowed.
+        
+                        The notes are explicitly marked as non-KYC and non-advisory. They are stored only as background context about
+                        personal interests and must not be used as evidence for identity, address, income, risk or any regulatory
+                        requirement.
                         """
                 )
         );
+
+
+// Helena Costa – tax residency clarification, form help, office visit log
+        documentService.createDocument(
+                helenaCosta.id(),
+                new CreateDocumentRequest(
+                        "Tax residency clarification – move between Portugal and Spain",
+                        """
+                        This note documents a clarification call with Helena Costa regarding her tax residency status. Helena explained
+                        that she had temporarily lived and worked in Spain for part of the previous year but has since returned to
+                        Portugal and is now registered as a Portuguese tax resident. She provided her Portuguese taxpayer number and
+                        confirmed that she no longer files tax returns in Spain.
+        
+                        The compliance officer checked that the most recent self-certification reflects Portugal as the only current
+                        tax residency and that previous Spanish residency has been correctly marked as historical. The note concludes
+                        that Helena should be treated as tax resident in Portugal only for CRS and FATCA purposes as of the current
+                        year.
+                        """
+                )
+        );
+
+        documentService.createDocument(
+                helenaCosta.id(),
+                new CreateDocumentRequest(
+                        "Form completion helper note – guidance for KYC questions",
+                        """
+                        This helper note records guidance given to Helena Costa when she asked for clarification on certain KYC form
+                        questions. The analyst explained the difference between “source of funds” and “source of wealth”, and gave
+                        examples of how to describe employment income, business proceeds and inheritances without disclosing excessive
+                        personal detail.
+        
+                        The note emphasises that the guidance was purely explanatory and that Helena’s answers must reflect her own
+                        situation. It is stored as a support record and is not treated as a signed statement or proof document in its
+                        own right.
+                        """
+                )
+        );
+
+        documentService.createDocument(
+                helenaCosta.id(),
+                new CreateDocumentRequest(
+                        "Office visit log – coffee and non-financial chat",
+                        """
+                        This log records a short office visit by Helena Costa during which she dropped off some original documents for
+                        scanning. While the scanner was in use, Helena had a casual chat with the receptionist about local cafés,
+                        weekend markets and a new exhibition at the city museum. No financial topics, product discussions or KYC
+                        details were covered.
+        
+                        The visit is recorded solely for physical access tracking and document handling purposes. The conversation
+                        notes are explicitly marked as non-KYC and non-advisory, and they play no role in onboarding, suitability or
+                        AML assessments.
+                        """
+                )
+        );
+
 
     }
 }

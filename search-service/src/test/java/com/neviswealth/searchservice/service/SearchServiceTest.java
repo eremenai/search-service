@@ -7,6 +7,7 @@ import com.neviswealth.searchservice.domain.Document;
 import com.neviswealth.searchservice.embedding.EmbeddingProvider;
 import com.neviswealth.searchservice.persistence.ClientRepository;
 import com.neviswealth.searchservice.persistence.DocumentRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -37,6 +38,12 @@ class SearchServiceTest {
 
     @InjectMocks
     private SearchService searchService;
+
+    @BeforeEach
+    void setUpDefaults() {
+        lenient().when(documentRepository.searchLexically(any(), anyString(), anyInt())).thenReturn(List.of());
+        lenient().when(documentRepository.searchWithEmbeddings(any(), any(float[].class), anyInt())).thenReturn(List.of());
+    }
 
     @Test
     void throwsOnBlankQuery() {
@@ -118,15 +125,15 @@ class SearchServiceTest {
         UUID clientId = UUID.randomUUID();
         UUID documentId = UUID.randomUUID();
         when(clientRepository.existsById(clientId)).thenReturn(true);
-        when(clientRepository.searchByNameOrDomain("payment", "payment", 20)).thenReturn(List.of());
         when(embeddingProvider.embed("payment")).thenReturn(new float[]{0.1f});
         Document document = new Document(documentId, clientId, "Payment doc", "body", "hash", null, OffsetDateTime.now());
+        when(documentRepository.searchLexically(eq(clientId), eq("payment"), eq(10))).thenReturn(List.of());
         when(documentRepository.searchWithEmbeddings(eq(clientId), any(float[].class), eq(10)))
                 .thenReturn(List.of(new DocumentRepository.DocumentSearchRow(document, 0.3d, "matched", false)));
 
         SearchResultDto result = searchService.search("payment", clientId);
 
-        assertThat(result.clients()).isEmpty();
+        assertThat(result.clients()).isNull();
         assertThat(result.documents()).hasSize(1);
         assertThat(result.documents().getFirst().document().id()).isEqualTo(documentId);
         assertThat(result.documents().getFirst().matchedSnippet()).isEqualTo("matched");
@@ -139,6 +146,7 @@ class SearchServiceTest {
     void limitsClientResultsToTwenty() {
         String query = "client@example.com";
         when(embeddingProvider.embed(query)).thenReturn(new float[]{0.0f});
+        when(documentRepository.searchLexically(isNull(), eq(query), eq(10))).thenReturn(List.of());
         List<ClientRepository.ClientSearchRow> clients = IntStream.range(0, 25)
                 .mapToObj(i -> new ClientRepository.ClientSearchRow(
                         new Client(
@@ -170,6 +178,7 @@ class SearchServiceTest {
     void sortsDocumentsByDistanceDescending() {
         when(clientRepository.searchByNameOrDomain("docs", "docs", 20)).thenReturn(List.of());
         when(embeddingProvider.embed("docs")).thenReturn(new float[]{0.1f});
+        when(documentRepository.searchLexically(isNull(), eq("docs"), eq(10))).thenReturn(List.of());
         DocumentRepository.DocumentSearchRow docHigh = new DocumentRepository.DocumentSearchRow(
                 new Document(UUID.randomUUID(), UUID.randomUUID(), "DocHigh", "b", "h", null, OffsetDateTime.now()),
                 0.3d,
@@ -197,7 +206,7 @@ class SearchServiceTest {
     }
 
     @Test
-    void keepsHighestScorePerDocumentAcrossSources() {
+    void combinesScoresPerDocumentAcrossSources() {
         when(clientRepository.searchByNameOrDomain("dup", "dup", 20)).thenReturn(List.of());
         when(embeddingProvider.embed("dup")).thenReturn(new float[]{0.1f});
         UUID documentId = UUID.randomUUID();
@@ -213,15 +222,16 @@ class SearchServiceTest {
         assertThat(result.documents()).hasSize(1);
         ScoredDocumentDto topDocument = result.documents().getFirst();
         assertThat(topDocument.document().id()).isEqualTo(documentId);
-        assertThat(topDocument.score()).isEqualTo(0.9d);
-        assertThat(topDocument.matchedSnippet()).isEqualTo("embed");
+        assertThat(topDocument.score()).isEqualTo(1.6d);
+        assertThat(topDocument.matchedSnippet()).isEqualTo("lexical");
     }
 
     @Test
-    void limitsDocumentResultsToTen() {
+    void limitsDocumentResultsToMax() {
         when(clientRepository.searchByNameOrDomain("docs", "docs", 20)).thenReturn(List.of());
         when(embeddingProvider.embed("docs")).thenReturn(new float[]{0.1f});
-        List<DocumentRepository.DocumentSearchRow> docs = IntStream.range(0, 12)
+        when(documentRepository.searchLexically(isNull(), eq("docs"), eq(10))).thenReturn(List.of());
+        List<DocumentRepository.DocumentSearchRow> docs = IntStream.range(0, 120)
                 .mapToObj(i -> new DocumentRepository.DocumentSearchRow(
                         new Document(UUID.randomUUID(), UUID.randomUUID(), "Doc" + i, "b", "h", null, OffsetDateTime.now()),
                         0.1 + i * 0.01,
