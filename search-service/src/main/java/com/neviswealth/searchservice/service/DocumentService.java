@@ -65,35 +65,12 @@ public class DocumentService {
         );
         Document saved = documentRepository.insert(document);
 
-        try {
-            List<Chunk> chunks = chunkContent(title, content);
-            List<DocumentChunk> toPersist = embedChunks(saved.id(), chunks);
-            if (!toPersist.isEmpty()) {
-                documentRepository.insertChunks(saved.id(), toPersist);
-            }
-            return DocumentDto.from(saved);
-
-        } catch (ChunkingFailedException e) {
-            throw new DocumentIngestionException("CHUNKING_FAILED",
-                    "Chunking failed for document '%s'".formatted(title),
-                    clientId,
-                    title,
-                    e);
-        } catch (EmbeddingFailedException e) {
-            throw new DocumentIngestionException("EMBEDDING_FAILED",
-                    "Embedding failed for document '%s'".formatted(title),
-                    clientId,
-                    title,
-                    e);
-        } catch (DocumentIngestionException e) {
-            throw e;
-        } catch (RuntimeException e) {
-            throw new DocumentIngestionException("DOCUMENT_INGESTION_FAILED",
-                    "Failed to ingest document '%s' for client %s".formatted(title, clientId),
-                    clientId,
-                    title,
-                    e);
+        List<Chunk> chunks = chunkContent(title, content);
+        List<DocumentChunk> toPersist = embedChunks(saved.id(), chunks);
+        if (!toPersist.isEmpty()) {
+            documentRepository.insertChunks(saved.id(), toPersist);
         }
+        return DocumentDto.from(saved);
     }
 
     public DocumentWithContentDto getDocument(UUID documentId) {

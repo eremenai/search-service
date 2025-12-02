@@ -147,10 +147,9 @@ class DocumentServiceTest {
         Document saved = new Document(UUID.randomUUID(), clientId, "Title", "content body", "hash", null, OffsetDateTime.now());
         when(documentRepository.insert(any())).thenReturn(saved);
 
-        var ex = assertThrows(DocumentIngestionException.class, () ->
+        var ex = assertThrows(ChunkingFailedException.class, () ->
                 documentService.createDocument(clientId, new CreateDocumentRequest("Title", "content body")));
-        assertThat(ex.getCode()).isEqualTo("CHUNKING_FAILED");
-        assertThat(ex.getCause()).isInstanceOf(ChunkingFailedException.class);
+        assertThat(ex.getMessage()).contains("chunk error");
     }
 
     @Test
@@ -163,9 +162,8 @@ class DocumentServiceTest {
         Document saved = new Document(UUID.randomUUID(), clientId, "Title", "body", "hash", null, OffsetDateTime.now());
         when(documentRepository.insert(any())).thenReturn(saved);
 
-        var ex = assertThrows(DocumentIngestionException.class, () ->
+        var ex = assertThrows(EmbeddingFailedException.class, () ->
                 documentService.createDocument(clientId, new CreateDocumentRequest("Title", "body")));
-        assertThat(ex.getCode()).isEqualTo("EMBEDDING_FAILED");
-        assertThat(ex.getCause()).isInstanceOf(EmbeddingFailedException.class);
+        assertThat(ex.getMessage()).contains("embed failed");
     }
 }

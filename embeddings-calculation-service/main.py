@@ -30,7 +30,7 @@ def load_model() -> None:
     """Load the embedding model once when the service starts."""
     global model
     logger.info("Loading embedding model 'BAAI/bge-small-en'...")
-    model = SentenceTransformer("BAAI/bge-small-en-v1.5")
+    model = SentenceTransformer("BAAI/bge-small-en")
     logger.info("Model loaded.")
 
 
