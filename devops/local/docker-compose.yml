@@ -26,6 +26,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      SPRING_PROFILES_ACTIVE: ""
       DB_URL: jdbc:postgresql://postgres:5432/search_service
       DB_USERNAME: search_service
       DB_PASSWORD: search_service

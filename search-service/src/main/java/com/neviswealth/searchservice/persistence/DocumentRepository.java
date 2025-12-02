@@ -26,11 +26,13 @@ public class DocumentRepository {
     private static final RowMapper<Document> NO_CONTENT_DOCUMENT_ROW_MAPPER = new NoContentDocumentRowMapper();
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
-    private final double threshold;
+    private final double embeddingThreshold;
+    private final double similarityThreshold;
 
     public DocumentRepository(NamedParameterJdbcTemplate jdbcTemplate, SearchingProperties properties) {
         this.jdbcTemplate = jdbcTemplate;
-        this.threshold = properties.getThreshold();
+        this.embeddingThreshold = properties.getEmbedding();
+        this.similarityThreshold = properties.getSimilarity();
     }
 
     public Document insert(Document document) {
@@ -107,7 +109,7 @@ public class DocumentRepository {
                     WHERE
                         (:clientId::uuid IS NULL OR d.client_id = :clientId)
                          AND
-                        ((dc.content ILIKE '%' || :q || '%') OR (similarity(dc.content, :q) >= 0.05))
+                        ((dc.content ILIKE '%' || :q || '%') OR (similarity(dc.content, :q) >= :threshold))
                 ) ranked
                 WHERE rn = 1
                 ORDER BY
@@ -118,7 +120,8 @@ public class DocumentRepository {
         var params = new MapSqlParameterSource()
                 .addValue("q", query)
                 .addValue("clientId", clientId, Types.OTHER)
-                .addValue("limit", limit);
+                .addValue("limit", limit)
+                .addValue("threshold", similarityThreshold);
 
         return jdbcTemplate.query(sql, params, (rs, rowNum) -> new DocumentSearchRow(
                 NO_CONTENT_DOCUMENT_ROW_MAPPER.mapRow(rs, rowNum),
@@ -156,7 +159,7 @@ public class DocumentRepository {
                 .addValue("clientId", clientId, Types.OTHER)
                 .addValue("queryVector", new SqlParameterValue(Types.OTHER, new PGvector(queryVector)))
                 .addValue("limit", limit)
-                .addValue("threshold", threshold);
+                .addValue("threshold", embeddingThreshold);
 
         return jdbcTemplate.query(sql, params, (rs, rowNum) -> new DocumentSearchRow(
                 NO_CONTENT_DOCUMENT_ROW_MAPPER.mapRow(rs, rowNum),

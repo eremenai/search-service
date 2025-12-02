@@ -82,7 +82,6 @@ public class SearchService {
 
     private Collection<ScoredDocumentDto> mergeResults(List<DocumentRepository.DocumentSearchRow> lexically, List<DocumentRepository.DocumentSearchRow> byEmbeddings) {
 
-        // score = (lexical_score + 1) / 2   +  embedding_score
         var combined = new HashMap<UUID, ScoredDocumentDto>();
 
         for (DocumentRepository.DocumentSearchRow row : lexically) {
@@ -90,8 +89,6 @@ public class SearchService {
         }
 
         for (DocumentRepository.DocumentSearchRow row : byEmbeddings) {
-            // add score from embeddings
-            combined.computeIfPresent(row.document().id(), (k, dto) -> dto.updateScore(prev -> prev + row.score()));
             combined.computeIfAbsent(row.document().id(), (k) -> new ScoredDocumentDto(DocumentDto.from(row.document()), row.score(), row.matchedSnippet(), row.lexically()));
         }
         return combined.values();

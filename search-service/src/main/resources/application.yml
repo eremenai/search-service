@@ -41,4 +41,6 @@ chunking:
   max-chars: 500
 
 search:
-  threshold: 0.4
+  threshold:
+    embedding: 0.4
+    similarity: 0.15
