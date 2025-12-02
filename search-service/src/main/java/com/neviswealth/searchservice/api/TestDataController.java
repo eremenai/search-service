@@ -27,7 +27,7 @@ public class TestDataController {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    @PostMapping
+    @PostMapping("/wipe-everything")
     public void wipeOut() {
         jdbcTemplate.execute("truncate table clients cascade");
     }
