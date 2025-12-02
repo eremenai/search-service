@@ -49,7 +49,7 @@ class DocumentServiceTest {
         UUID clientId = UUID.randomUUID();
         when(clientRepository.existsById(clientId)).thenReturn(true);
         when(documentRepository.existsByClientIdAndTitle(clientId, "Utility bill")).thenReturn(false);
-        when(chunkingStrategy.chunk("content body")).thenReturn(List.of(new Chunk(0, "content body")));
+        when(chunkingStrategy.chunk(any(), eq("content body"))).thenReturn(List.of(new Chunk(0, "content body")));
         when(embeddingProvider.embed("content body")).thenReturn(new float[]{0.1f, 0.2f});
         Document saved = new Document(UUID.randomUUID(), clientId, "Utility bill", "content body", "hash", null, OffsetDateTime.now());
         when(documentRepository.insert(any())).thenReturn(saved);
@@ -67,7 +67,7 @@ class DocumentServiceTest {
         UUID clientId = UUID.randomUUID();
         when(clientRepository.existsById(clientId)).thenReturn(true);
         when(documentRepository.existsByClientIdAndTitle(clientId, "Title")).thenReturn(false);
-        when(chunkingStrategy.chunk("content body")).thenReturn(List.of());
+        when(chunkingStrategy.chunk(any(), eq("content body"))).thenReturn(List.of());
         Document saved = new Document(UUID.randomUUID(), clientId, "Title", "content body", "hash", null, OffsetDateTime.now());
         when(documentRepository.insert(any())).thenReturn(saved);
 
@@ -81,7 +81,7 @@ class DocumentServiceTest {
         UUID clientId = UUID.randomUUID();
         when(clientRepository.existsById(clientId)).thenReturn(true);
         when(documentRepository.existsByClientIdAndTitle(clientId, "Title")).thenReturn(false);
-        when(chunkingStrategy.chunk("abc")).thenReturn(List.of());
+        when(chunkingStrategy.chunk(any(), eq("abc"))).thenReturn(List.of());
         ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
         when(documentRepository.insert(docCaptor.capture())).thenReturn(
                 new Document(UUID.randomUUID(), clientId, "Title", "abc", "hash", null, OffsetDateTime.now())
@@ -144,7 +144,7 @@ class DocumentServiceTest {
         UUID clientId = UUID.randomUUID();
         when(clientRepository.existsById(clientId)).thenReturn(true);
         when(documentRepository.existsByClientIdAndTitle(clientId, "Title")).thenReturn(false);
-        when(chunkingStrategy.chunk("content body")).thenThrow(new ChunkingFailedException("chunk error"));
+        when(chunkingStrategy.chunk(any(), eq("content body"))).thenThrow(new ChunkingFailedException("chunk error"));
         Document saved = new Document(UUID.randomUUID(), clientId, "Title", "content body", "hash", null, OffsetDateTime.now());
         when(documentRepository.insert(any())).thenReturn(saved);
 
@@ -159,7 +159,7 @@ class DocumentServiceTest {
         UUID clientId = UUID.randomUUID();
         when(clientRepository.existsById(clientId)).thenReturn(true);
         when(documentRepository.existsByClientIdAndTitle(clientId, "Title")).thenReturn(false);
-        when(chunkingStrategy.chunk("body")).thenReturn(List.of(new Chunk(0, "body")));
+        when(chunkingStrategy.chunk(any(), eq("body"))).thenReturn(List.of(new Chunk(0, "body")));
         when(embeddingProvider.embed("body")).thenThrow(new EmbeddingFailedException("EMBEDDING_CALL_FAILED", "embed failed"));
         Document saved = new Document(UUID.randomUUID(), clientId, "Title", "body", "hash", null, OffsetDateTime.now());
         when(documentRepository.insert(any())).thenReturn(saved);

@@ -105,7 +105,7 @@ public class DocumentService {
 
     private List<Chunk> chunkContent(Document document) {
         try {
-            return chunkingStrategy.chunk(document.content());
+            return chunkingStrategy.chunk(document.title(), document.content());
         } catch (ChunkingFailedException e) {
             throw e;
         } catch (RuntimeException e) {

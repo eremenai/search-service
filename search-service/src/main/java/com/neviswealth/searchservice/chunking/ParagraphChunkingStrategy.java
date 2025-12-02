@@ -15,14 +15,18 @@ public class ParagraphChunkingStrategy implements ChunkingStrategy {
     }
 
     @Override
-    public List<Chunk> chunk(String fullContent) {
+    public List<Chunk> chunk(String title, String fullContent) {
         if (fullContent == null || fullContent.isBlank()) {
             return List.of();
         }
 
         String[] paragraphs = fullContent.split("\\n\\s*\\n");
-        List<Chunk> result = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
+        List<String> chunks = new ArrayList<>();
+        StringBuilder paragraphMerge = new StringBuilder();
+
+        if (!title.isBlank()) {
+            chunks.add(title);
+        }
 
         for (String rawParagraph : paragraphs) {
             String paragraph = rawParagraph.strip();
@@ -30,35 +34,39 @@ public class ParagraphChunkingStrategy implements ChunkingStrategy {
                 continue;
             }
             if (paragraph.length() > maxChars) {
-                List<String> splitParagraphs = splitLongParagraph(paragraph);
-                for (String piece : splitParagraphs) {
-                    appendPiece(piece, result, current);
+                if (!paragraphMerge.isEmpty()) {
+                    chunks.add(paragraphMerge.toString());
+                    paragraphMerge.setLength(0);
                 }
+
+                chunks.addAll(splitLongParagraph(paragraph));
             } else {
-                appendPiece(paragraph, result, current);
+                appendPiece(paragraph, chunks, paragraphMerge);
             }
         }
 
-        if (!current.isEmpty()) {
-            result.add(new Chunk(result.size(), current.toString()));
+        if (!paragraphMerge.isEmpty()) {
+            chunks.add(paragraphMerge.toString());
+        }
+
+        List<Chunk> result = new ArrayList<>();
+        for (int i = 0; i <= chunks.size() - 1; i++) {
+            result.add(new Chunk(i, chunks.get(i)));
         }
         return result;
     }
 
-    private void appendPiece(String paragraph, List<Chunk> chunks, StringBuilder current) {
-        int spacer = current.isEmpty() ? 0 : 2; // account for \n\n between paragraphs
-        if (!current.isEmpty() && current.length() + spacer + paragraph.length() > maxChars) {
-            chunks.add(new Chunk(chunks.size(), current.toString()));
-            current.setLength(0);
-            current.append(paragraph);
-        } else if (paragraph.length() > maxChars) {
-            chunks.add(new Chunk(chunks.size(), paragraph.substring(0, Math.min(paragraph.length(), maxChars))));
-            current.setLength(0);
+    private void appendPiece(String paragraph, List<String> chunks, StringBuilder paragraphMerge) {
+        if (!paragraphMerge.isEmpty() && paragraphMerge.length() + 2 + paragraph.length() > maxChars) {
+            chunks.add(paragraphMerge.toString());
+            paragraphMerge.setLength(0);
+            paragraphMerge.append(paragraph);
+            paragraphMerge.setLength(0);
         } else {
-            if (!current.isEmpty()) {
-                current.append("\n\n");
+            if (!paragraphMerge.isEmpty()) {
+                paragraphMerge.append("\n\n");
             }
-            current.append(paragraph);
+            paragraphMerge.append(paragraph);
         }
     }
 

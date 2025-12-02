@@ -19,7 +19,7 @@ class ParagraphChunkingStrategyTest {
                 """;
         ParagraphChunkingStrategy strategy = new ParagraphChunkingStrategy(80);
 
-        List<Chunk> chunks = strategy.chunk(content);
+        List<Chunk> chunks = strategy.chunk("", content);
 
         assertThat(chunks).hasSize(6);
         assertThat(chunks).allSatisfy(chunk -> {
@@ -36,8 +36,8 @@ class ParagraphChunkingStrategyTest {
     void returnsEmptyListWhenContentIsBlank() {
         ParagraphChunkingStrategy strategy = new ParagraphChunkingStrategy(50);
 
-        assertThat(strategy.chunk("   ")).isEmpty();
-        assertThat(strategy.chunk(null)).isEmpty();
+        assertThat(strategy.chunk("", "   ")).isEmpty();
+        assertThat(strategy.chunk("  ", null)).isEmpty();
     }
 
     @Test
@@ -45,7 +45,7 @@ class ParagraphChunkingStrategyTest {
         ParagraphChunkingStrategy strategy = new ParagraphChunkingStrategy(100);
         String content = "Short paragraph only.";
 
-        List<Chunk> chunks = strategy.chunk(content);
+        List<Chunk> chunks = strategy.chunk("", content);
 
         assertThat(chunks).hasSize(1);
         assertThat(chunks.getFirst().content()).isEqualTo(content);
@@ -57,7 +57,7 @@ class ParagraphChunkingStrategyTest {
         ParagraphChunkingStrategy strategy = new ParagraphChunkingStrategy(30);
         String content = "This single paragraph is intentionally quite long to force splitting by words.";
 
-        List<Chunk> chunks = strategy.chunk(content);
+        List<Chunk> chunks = strategy.chunk("", content);
 
         assertThat(chunks).hasSizeGreaterThan(1);
         assertThat(chunks).allSatisfy(chunk -> assertThat(chunk.content().length()).isLessThanOrEqualTo(30));
@@ -75,10 +75,10 @@ class ParagraphChunkingStrategyTest {
                 Third short paragraph.
                 """;
 
-        List<Chunk> chunks = strategy.chunk(content);
+        List<Chunk> chunks = strategy.chunk("Title", content);
 
-        assertThat(chunks).hasSize(1);
-        assertThat(chunks.getFirst().content()).contains("Second short paragraph.");
+        assertThat(chunks).hasSize(2);
+        assertThat(chunks.get(1).content()).contains("Second short paragraph.");
     }
 
     @Test
@@ -92,9 +92,9 @@ class ParagraphChunkingStrategyTest {
                 Tail paragraph.
                 """;
 
-        List<Chunk> chunks = strategy.chunk(content);
+        List<Chunk> chunks = strategy.chunk("", content);
 
-        assertThat(chunks).hasSize(3);
+        assertThat(chunks).hasSize(4);
         assertThat(chunks.getFirst().content()).contains("Fit paragraph.");
         assertThat(chunks.stream().map(Chunk::content).anyMatch(s -> s.contains("Tail paragraph."))).isTrue();
         assertThat(chunks).allSatisfy(chunk -> assertThat(chunk.content().length()).isLessThanOrEqualTo(60));
@@ -111,7 +111,7 @@ class ParagraphChunkingStrategyTest {
                 This third paragraph is intentionally long and should be broken into two separate chunks by words to respect the limit.
                 """;
 
-        List<Chunk> chunks = strategy.chunk(content);
+        List<Chunk> chunks = strategy.chunk("", content);
 
         assertThat(chunks).hasSize(3);
         assertThat(chunks.get(0).content()).contains("Short one.").contains("Short two.");
