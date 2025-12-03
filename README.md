@@ -28,6 +28,7 @@ At a high level, the system works as follows:
 
 - **Data storage**
   - All structured data (clients, documents, document chunks) is stored in **Postgres**.
+  - Clients enries are enriched with derived and normalized data which helps to speed up the search using indices on those normalized columns.
   - Document chunks also store an **embedding vector** column using `pgvector`, so semantic search can be executed directly inside Postgres.
   - Documents are stored as text, alongside metadata such as title, client reference and a content hash.
 
