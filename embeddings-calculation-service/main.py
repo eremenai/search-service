@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException
@@ -10,6 +11,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Embedding Calculation Service")
+
+DEFAULT_MODEL = "BAAI/bge-small-en"
 
 # Initialized at startup; kept module-scoped to avoid per-request loading.
 model: Optional[SentenceTransformer] = None
@@ -29,9 +32,10 @@ class EmbedResponse(BaseModel):
 def load_model() -> None:
     """Load the embedding model once when the service starts."""
     global model
-    logger.info("Loading embedding model 'BAAI/bge-small-en'...")
-    model = SentenceTransformer("BAAI/bge-small-en")
-    logger.info("Model loaded.")
+    model_name = (os.getenv("MODEL") or DEFAULT_MODEL).strip() or DEFAULT_MODEL
+    logger.info("Loading embedding model '%s'...", model_name)
+    model = SentenceTransformer(model_name)
+    logger.info("Model '%s' loaded.", model_name)
 
 
 # Permissive CORS to simplify local/testing use; adjust for production.
