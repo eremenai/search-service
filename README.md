@@ -217,24 +217,24 @@ I added a small **demo** API that can populate the system with simple or more co
 
 #### 5.3.1 Client search
 
-`http://34.175.18.120:8080/search?q=jons` will give you following clients:
+http://34.175.18.120:8080/search?q=jons will give you following clients:
 ```
 emma.jones@shoreviewwealth.com Emma Jones
 jonas.schneider@rhein-invest.de Jonas Schneider
 ```
 
-`http://localhost:8080/search?q=shoge%20view%20wealth` will return "Emma Jones" from Shore View Wealth, but note the typo.
+http://34.175.18.120:8080/search?q=shoge%20view%20wealth will return "Emma Jones" from Shore View Wealth, but note the typo.
 
-`http://localhost:8080/search?q=marta.rozzi%40alpen` with `@` that will search only through emails will return "marta.rossi@alpineawealth.it" even with typos.
+http://34.175.18.120:8080/search?q=marta.rozzi%40alpen with `@` that will search only through emails will return "marta.rossi@alpineawealth.it" even with typos.
 
 
 #### 5.3.2 Document search
 
-`http://34.175.18.120:8080/search?q=blockchain%20money` will give Client follow-up – explanation of **crypto cash-out**" at the top.
+http://34.175.18.120:8080/search?q=blockchain%20money will give Client follow-up – explanation of **crypto cash-out**" at the top.
 
-`http://34.175.18.120:8080/search?q=environment` will give "**Suitability** assessment summary – multi-asset mandate".
+http://34.175.18.120:8080/search?q=environment will give "**Suitability** assessment summary – multi-asset mandate".
 
-`http://localhost:8080/search?q=KYC` will return all the documents containing that exact word.
+http://34.175.18.120:8080/search?q=KYC will return all the documents containing that exact word.
 
 
 ## 6. Trade-offs
