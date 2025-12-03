@@ -121,7 +121,7 @@ erDiagram
     }
 
     document_chunks {
-        uuid document_id FK
+        uuid document_id FK,PK
         int chunk_index PK
         text content
         vector embedding
