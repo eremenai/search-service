@@ -60,6 +60,8 @@ At a high level, the system works as follows:
   - Lexical search:
     - Performs `ILIKE` substring checks and trigram `similarity` against chunk text (filtered by `search.threshold.similarity`), keeps the best chunk per document via `ROW_NUMBER`, and orders matches by exact substring hits first and similarity score next.
 
+  For document search, each chunk of text is converted into an embedding vector that captures its semantic meaning rather than just exact words. At query time, the search phrase is embedded in the same vector space, and Postgres uses cosine distance on these vectors to find chunks whose meaning is closest to the query, even if they use different wording (e.g. “proof of address” vs “recent utility bill”). Because chunks are small and focused, their embeddings stay aligned with a single topic, which makes nearest-neighbour search over embeddings a good approximation of “find the most relevant passages” inside long documents.
+
 - **Summaries**
   - Summaries are generated on demand because LLM calls are relatively expensive. When a summary is first requested (via introduced document-by-id endpoint), the service calls the summarisation provider, stores the result in the database, and returns it with the document.
 
@@ -203,10 +205,35 @@ Also, for testing, you may provide your own endpoints and tokens, check below.
 ### 5.1 Run Modes (Docker compose)
 - `docker compose -f devops/local/docker-compose.yml --profile all up -d` – starts Postgres, embeddings, summary, and the search-service wired to both local services.
 - `docker compose -f devops/local/docker-compose.yml --profile embed up -d` – starts Postgres, embeddings, and the search-service configured to call the local embedding service with summary mocked.
+
+Also the following is a template for using external providers, but there might be differences in the protocol.
 - `docker compose -f devops/local/docker-compose.yml --profile external up -d` – starts Postgres and the search-service expecting external embedding/summary endpoints provided via environment variables.
 
 ### 5.3 Examples of queries
-/////todo
+
+I added a small **demo** API that can populate the system with simple or more complex test data, and also wipe all data. This endpoint is purely for local development and exploration and is not intended for production use; it can be disabled via Spring profile configuration. You can either use the demo API to pre-populate clients and documents and then try different search scenarios, or skip it and inject your own data through the regular endpoints.
+
+#### 5.3.1 Client search
+
+`http://34.175.18.120:8080/search?q=jons` will give you following clients:
+```
+emma.jones@shoreviewwealth.com Emma Jones
+jonas.schneider@rhein-invest.de Jonas Schneider
+```
+
+`http://localhost:8080/search?q=shoge%20view%20wealth` will return "Emma Jones" from Shore View Wealth, but note the typo.
+
+`http://localhost:8080/search?q=marta.rozzi%40alpen` with `@` that will search only through emails will return "marta.rossi@alpineawealth.it" even with typos.
+
+
+#### 5.3.2 Document search
+
+`http://34.175.18.120:8080/search?q=blockchain%20money` will give Client follow-up – explanation of **crypto cash-out**" at the top.
+
+`http://34.175.18.120:8080/search?q=environment` will give "**Suitability** assessment summary – multi-asset mandate".
+
+`http://localhost:8080/search?q=KYC` will return all the documents containing that exact word.
+
 
 ## 6. Trade-offs
 
