@@ -145,7 +145,7 @@ public class DocumentRepository {
                                 d.title,
                                 d.created_at,
                                 dc.content AS chunk_content,
-                                exp(-(dc.embedding <-> :queryVector)) AS score,
+                                (1 - (dc.embedding <-> :queryVector)) AS score,
                                 ROW_NUMBER() OVER (PARTITION BY d.id ORDER BY dc.embedding <-> :queryVector) AS rn
                          FROM document_chunks dc
                          JOIN documents d ON d.id = dc.document_id

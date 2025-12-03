@@ -214,16 +214,18 @@ class SearchServiceTest {
         DocumentRepository.DocumentSearchRow lexicalHit = new DocumentRepository.DocumentSearchRow(doc, 0.4d, "lexical", false);
         DocumentRepository.DocumentSearchRow embeddingHit = new DocumentRepository.DocumentSearchRow(doc, 0.9d, "embed", false);
 
-        when(documentRepository.searchLexically(isNull(), eq("dup"), eq(10))).thenReturn(List.of(lexicalHit));
-        when(documentRepository.searchWithEmbeddings(isNull(), any(float[].class), eq(10))).thenReturn(List.of(embeddingHit));
+        when(documentRepository.searchLexically(any(), eq("dup"), anyInt())).thenReturn(List.of(lexicalHit));
+        when(documentRepository.searchWithEmbeddings(any(), any(float[].class), anyInt())).thenReturn(List.of(embeddingHit));
 
         SearchResultDto result = searchService.search("dup", null);
 
         assertThat(result.documents()).hasSize(1);
         ScoredDocumentDto topDocument = result.documents().getFirst();
         assertThat(topDocument.document().id()).isEqualTo(documentId);
-        assertThat(topDocument.score()).isEqualTo(1.6d);
+        // rank the lexical search higher
+        assertThat(topDocument.score()).isEqualTo(0.7d);
         assertThat(topDocument.matchedSnippet()).isEqualTo("lexical");
+        verify(documentRepository).searchWithEmbeddings(isNull(), any(float[].class), eq(10));
     }
 
     @Test

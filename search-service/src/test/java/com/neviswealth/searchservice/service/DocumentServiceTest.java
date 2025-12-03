@@ -2,6 +2,7 @@ package com.neviswealth.searchservice.service;
 
 import com.neviswealth.searchservice.api.dto.CreateDocumentRequest;
 import com.neviswealth.searchservice.api.dto.DocumentDto;
+import com.neviswealth.searchservice.api.dto.DocumentWithContentDto;
 import com.neviswealth.searchservice.chunking.Chunk;
 import com.neviswealth.searchservice.chunking.ChunkingFailedException;
 import com.neviswealth.searchservice.chunking.ChunkingStrategy;
@@ -23,6 +24,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -168,6 +171,59 @@ class DocumentServiceTest {
         assertThat(dto.summary()).isEqualTo("existing summary");
         verify(summaryProvider, never()).summary(any());
         verify(documentRepository, never()).updateDocumentWithSummary(any(), any());
+    }
+
+    @Test
+    void loadsSummaryOnceAcrossConcurrentRequests() throws Exception {
+        UUID docId = UUID.randomUUID();
+        UUID clientId = UUID.randomUUID();
+        Document doc = new Document(docId, clientId, "Title", "Body", "hash", null, OffsetDateTime.now());
+        when(documentRepository.findById(docId)).thenReturn(java.util.Optional.of(doc));
+
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch loaderUnblock = new CountDownLatch(1);
+        AtomicInteger summaryCalls = new AtomicInteger();
+
+        when(summaryProvider.summary("Body")).thenAnswer(invocation -> {
+            summaryCalls.incrementAndGet();
+            loaderUnblock.await(1, TimeUnit.SECONDS);
+            return "computed summary";
+        });
+
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Future<DocumentWithContentDto> first = pool.submit(() -> {
+                ready.countDown();
+                start.await(1, TimeUnit.SECONDS);
+                return documentService.getDocument(docId);
+            });
+            Future<DocumentWithContentDto> second = pool.submit(() -> {
+                ready.countDown();
+                start.await(1, TimeUnit.SECONDS);
+                return documentService.getDocument(docId);
+            });
+
+            assertThat(ready.await(1, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+
+            // Allow first thread to enter loader and block, second should wait on the same in-flight future
+            TimeUnit.MILLISECONDS.sleep(100);
+            assertThat(summaryCalls.get()).isEqualTo(1);
+            assertThat(second.isDone()).isFalse();
+
+            loaderUnblock.countDown();
+
+            DocumentWithContentDto dto1 = first.get(1, TimeUnit.SECONDS);
+            DocumentWithContentDto dto2 = second.get(1, TimeUnit.SECONDS);
+
+            assertThat(dto1.summary()).isEqualTo("computed summary");
+            assertThat(dto2.summary()).isEqualTo("computed summary");
+            verify(summaryProvider, times(1)).summary("Body");
+            verify(documentRepository, times(1)).updateDocumentWithSummary(docId, "computed summary");
+        } finally {
+            pool.shutdownNow();
+        }
     }
 
     @Test
