@@ -16,7 +16,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
                 "embedding.provider=mock"
         }
 )
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 public abstract class AbstractIntegrationTest {
     @Container

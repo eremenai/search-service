@@ -13,6 +13,8 @@ public class SummaryProperties {
     @NotNull
     private ProviderType provider = ProviderType.MOCK;
 
+    private String promptEngineering;
+
     @NestedConfigurationProperty
     private final Http http = new Http();
 
@@ -26,6 +28,14 @@ public class SummaryProperties {
 
     public Http getHttp() {
         return http;
+    }
+
+    public String getPromptEngineering() {
+        return promptEngineering;
+    }
+
+    public void setPromptEngineering(String promptEngineering) {
+        this.promptEngineering = promptEngineering;
     }
 
     @Validated

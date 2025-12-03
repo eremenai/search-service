@@ -9,15 +9,19 @@ public class HttpSummaryProvider implements SummaryProvider {
 
     private static final Logger log = LoggerFactory.getLogger(HttpSummaryProvider.class);
     private final SummaryClient summaryClient;
+    private final String promptEngineering;
 
-    public HttpSummaryProvider(SummaryClient summaryClient) {
+    public HttpSummaryProvider(SummaryClient summaryClient, String promptEngineering) {
         this.summaryClient = summaryClient;
+        this.promptEngineering = promptEngineering;
     }
 
     @Override
     public String summary(String text) {
         try {
-            SummaryClient.SummaryResponse response = summaryClient.summarize(new SummaryClient.SummaryRequest(text, 32, 80));
+            var prompt = promptEngineering != null ? promptEngineering.formatted(text) : text;
+
+            SummaryClient.SummaryResponse response = summaryClient.summarize(new SummaryClient.SummaryRequest(prompt, 32, 80));
 
             return response == null ? null : response.summary();
 

@@ -12,7 +12,7 @@ public class SummaryConfig {
     @Bean
     public SummaryProvider summaryProvider(SummaryProperties properties, SummaryClient summaryClient) {
         return switch (properties.getProvider()) {
-            case HTTP -> new HttpSummaryProvider(summaryClient);
+            case HTTP -> new HttpSummaryProvider(summaryClient, properties.getPromptEngineering());
             case MOCK -> new MockSummaryProvider();
         };
     }

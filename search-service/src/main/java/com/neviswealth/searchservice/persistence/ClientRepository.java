@@ -64,10 +64,13 @@ public class ClientRepository {
 
     public List<ClientSearchRow> searchByEmail(String query, int limit) {
         String sql = """
-                SELECT id, email, email_domain, email_domain_slug, first_name, last_name, full_name, country_of_residence, created_at,
-                       similarity(email, :query) AS score
+                SELECT *,
+                       CASE WHEN email LIKE '%' || :query || '%' THEN 1 ELSE similarity(email, :query) END AS score
                 FROM clients
-                WHERE email % :query
+                WHERE (
+                    email LIKE '%' || :query || '%' OR
+                    email % :query
+                )
                 ORDER BY score DESC
                 LIMIT :limit
                 """;
@@ -79,17 +82,22 @@ public class ClientRepository {
 
     public List<ClientSearchRow> searchByNameOrDomain(String normalizedQuery, String slugQuery, int limit) {
         String sql = """
-                SELECT id, email, email_domain, email_domain_slug, first_name, last_name, full_name, country_of_residence, created_at,
-                       GREATEST(
+                SELECT *,
+                       CASE WHEN (full_name LIKE '%' || :normalizedQuery || '%' OR email LIKE '%' || :normalizedQuery || '%')
+                       THEN 1
+                       ELSE GREATEST(
                             similarity(full_name, :normalizedQuery),
                             similarity(full_name, :slugQuery),
                             similarity(email_domain_slug, :slugQuery),
                             similarity(email_domain, :slugQuery),
                             similarity(first_name, :normalizedQuery),
                             similarity(last_name, :normalizedQuery)
-                       ) AS score
+                       )
+                       END AS score
                 FROM clients
                 WHERE  (
+                    full_name LIKE '%' || :normalizedQuery || '%' OR
+                    email LIKE '%' || :normalizedQuery || '%' OR
                     full_name % :normalizedQuery OR
                     full_name % :slugQuery OR
                     email_domain_slug % :slugQuery OR
