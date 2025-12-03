@@ -50,6 +50,9 @@ At a high level, the system works as follows:
   - Postgres trigram similarity search is used to find matching clients and rank them in a sensible order.
 
 - **Document search (semantic)**
+  
+  For document search, each chunk of text is converted into an embedding vector that captures its semantic meaning rather than just exact words. At query time, the search phrase is embedded in the same vector space, and Postgres uses cosine distance on these vectors to find chunks whose meaning is closest to the query, even if they use different wording (e.g. “proof of address” vs “recent utility bill”). Because chunks are small and focused, their embeddings stay aligned with a single topic, which makes nearest-neighbour search over embeddings a good approximation of “find the most relevant passages” inside long documents.
+
   - Semantic search:
     - Embeds the user’s query into a vector.
     - Uses `pgvector`’s distance operator (cosine distance) to find the nearest chunk embeddings in Postgres.
@@ -59,8 +62,6 @@ At a high level, the system works as follows:
       - A similarity score derived from the embedding distance and, if desired, lexical signals.
   - Lexical search:
     - Performs `ILIKE` substring checks and trigram `similarity` against chunk text (filtered by `search.threshold.similarity`), keeps the best chunk per document via `ROW_NUMBER`, and orders matches by exact substring hits first and similarity score next.
-
-  For document search, each chunk of text is converted into an embedding vector that captures its semantic meaning rather than just exact words. At query time, the search phrase is embedded in the same vector space, and Postgres uses cosine distance on these vectors to find chunks whose meaning is closest to the query, even if they use different wording (e.g. “proof of address” vs “recent utility bill”). Because chunks are small and focused, their embeddings stay aligned with a single topic, which makes nearest-neighbour search over embeddings a good approximation of “find the most relevant passages” inside long documents.
 
 - **Summaries**
   - Summaries are generated on demand because LLM calls are relatively expensive. When a summary is first requested (via introduced document-by-id endpoint), the service calls the summarisation provider, stores the result in the database, and returns it with the document.
