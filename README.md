@@ -213,7 +213,7 @@ Also the following is a template for using external providers, but there might b
 
 ### 5.3 Examples of queries
 
-I added a small **demo** API that can populate the system with simple or more complex test data, and also wipe all data. This endpoint is purely for local development and exploration and is not intended for production use; it can be disabled via Spring profile configuration. You can either use the demo API to pre-populate clients and documents and then try different search scenarios, or skip it and inject your own data through the regular endpoints.
+I added a small **demo** API (`/populate-data/`) that can populate the system with simple or more complex test data, and also wipe everything (truncating the database). This endpoint is purely for local development and exploration and is not intended for production use; it can be disabled via Spring profile configuration. You can either use the demo API to pre-populate clients and documents and then try different search scenarios, or skip it and inject your own data through the regular endpoints.
 
 #### 5.3.1 Client search
 
@@ -238,6 +238,10 @@ http://34.175.18.120:8080/search?q=payments is an interesting case that combines
 
 http://34.175.18.120:8080/search?q=KYC will return all the documents containing that exact word.
 
+#### 5.3.3 Document summary
+
+When retrieving a single document by its id, the summary will be generated (if wasn't generated before).
+http://34.175.18.120:8080/documents/64004d36-cb92-43e2-9baa-586ba46bda75 - as example (will not work upon re-publishing the data, then search for documents or retrieve all of them).
 
 ## 6. Trade-offs
 
