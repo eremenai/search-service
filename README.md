@@ -230,9 +230,11 @@ http://34.175.18.120:8080/search?q=marta.rozzi%40alpen with `@` that will search
 
 #### 5.3.2 Document search
 
-http://34.175.18.120:8080/search?q=blockchain%20money will give Client follow-up – explanation of **crypto cash-out**" at the top.
+http://34.175.18.120:8080/search?q=blockchain will give Client follow-up – explanation of **crypto cash-out**" at the top.
 
-http://34.175.18.120:8080/search?q=environment will give "**Suitability** assessment summary – multi-asset mandate".
+http://localhost:8080/search?q=environmental%20issues hits the sustainability document at the top: "**sustainability** and small changes that can make a practical".
+
+http://localhost:8080/search?q=payments is an interesting case that combines both lexical and embedding search results, with keywords matching the meaning of payments.
 
 http://34.175.18.120:8080/search?q=KYC will return all the documents containing that exact word.
 

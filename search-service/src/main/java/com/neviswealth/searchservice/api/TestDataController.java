@@ -70,8 +70,8 @@ public class TestDataController {
         documentService.createDocument(
                 alexEremenkov.id(),
                 new CreateDocumentRequest(
-                        "Utility bill October 2025",
-                        "Electricity utility bill for October 2025 used as proof of address for Alex Eremenkov."
+                        "Payment for electro. October 2025. Main house",
+                        "Electricity utility bill for October 2025."
                 )
         );
 
@@ -260,6 +260,14 @@ public class TestDataController {
         documentService.createDocument(
                 emmaJones.id(),
                 new CreateDocumentRequest(
+                        "Payment for electro. October 2025. Main house",
+                        "Electricity bill for October 2025."
+                )
+        );
+
+        documentService.createDocument(
+                emmaJones.id(),
+                new CreateDocumentRequest(
                         "Email follow-up – missing payslip for September",
                         """
                         This document summarises the email exchange between the onboarding team and Emma Jones regarding a missing
@@ -402,6 +410,20 @@ public class TestDataController {
                         must not be interpreted as an indication of multiple tax residencies or permanent establishment in other
                         jurisdictions.
                         """
+                )
+        );
+
+        documentService.createDocument(
+                lukasNovak.id(),
+                new CreateDocumentRequest(
+                        "Personal reflections on everyday sustainability",
+                        """
+                                This note collects a few personal reflections on everyday sustainability and small changes that can make a practical difference. The starting point is the idea that sustainability is less about radical, one-off gestures and more about consistent, repeatable habits that are realistic to maintain over time. Instead of trying to live a “perfectly green” life for a week and then giving up, it is usually more effective to lock in a handful of modest changes that quietly compound over months and years.
+                                
+                                One simple area is transport. For short distances, walking or cycling instead of driving reduces emissions, cuts noise and often saves time in dense cities. For longer trips, using public transport where it is reasonably available can be an effective compromise between convenience and impact. None of this requires being dogmatic: occasionally taking a taxi or flying for an important trip is not “failure”, but rather a reminder that sustainability is about improving the average behaviour, not enforcing extremes.
+                                
+                                Finally, there is the social dimension of sustainability. Individual actions are useful, but they are much more powerful when they are shared, discussed and normalised within groups: families, teams at work, circles of friends. Talking openly about trade-offs—cost, convenience, comfort—helps avoid the guilt and “all or nothing” thinking that often paralyses people. Instead of aiming for perfection, a better goal is to gradually shift the default choices towards more sustainable ones, while openly acknowledging that no lifestyle will ever be completely impact-free.
+                                """
                 )
         );
 

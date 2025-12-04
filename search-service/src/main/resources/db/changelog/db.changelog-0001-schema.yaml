@@ -150,7 +150,7 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: embedding
-                  type: "vector(384)"
+                  type: "vector(${vectorDimension})"
                   constraints:
                     nullable: false
         - addPrimaryKey:
@@ -174,5 +174,4 @@ databaseChangeLog:
             sql: |
               CREATE INDEX IF NOT EXISTS idx_document_chunks_embedding
               ON document_chunks
-              USING ivfflat (embedding vector_cosine_ops)
-              WITH (lists = 500);
+              USING ivfflat (embedding vector_cosine_ops);

@@ -1,6 +1,6 @@
-package com.neviswealth.searchservice.api;
+package com.neviswealth.searchservice.integration;
 
-import com.neviswealth.searchservice.AbstractIntegrationTest;
+import com.neviswealth.searchservice.api.ClientController;
 import com.neviswealth.searchservice.api.dto.ClientDto;
 import com.neviswealth.searchservice.api.dto.CreateClientRequest;
 import com.neviswealth.searchservice.api.dto.ScoredClientDto;
@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
-class SearchControllerTestClient extends AbstractIntegrationTest {
+class ClientSearchTest extends AbstractIntegrationTest {
 
     @MockitoBean
     private EmbeddingProvider embeddingProvider;

@@ -14,6 +14,8 @@
     sql-dialect: POSTGRES
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
+    parameters:
+      vectorDimension: ${embedding.dimension}
 
 server:
   port: 8080
@@ -38,7 +40,7 @@ summary:
     api-token: ${SUMMARY_API_TOKEN:}
 
 chunking:
-  max-chars: 500
+  max-chars: 60
 
 search:
   threshold:

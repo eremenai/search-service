@@ -1,6 +1,5 @@
-package com.neviswealth.searchservice.api;
+package com.neviswealth.searchservice.integration;
 
-import com.neviswealth.searchservice.AbstractIntegrationTest;
 import com.neviswealth.searchservice.api.dto.ClientDto;
 import com.neviswealth.searchservice.api.dto.CreateClientRequest;
 import org.junit.jupiter.api.Test;

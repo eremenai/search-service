@@ -1,4 +1,4 @@
-package com.neviswealth.searchservice;
+package com.neviswealth.searchservice.integration;
 
 import org.junit.jupiter.api.Test;
 

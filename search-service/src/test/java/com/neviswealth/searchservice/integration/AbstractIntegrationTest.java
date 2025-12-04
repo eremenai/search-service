@@ -1,4 +1,4 @@
-package com.neviswealth.searchservice;
+package com.neviswealth.searchservice.integration;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
